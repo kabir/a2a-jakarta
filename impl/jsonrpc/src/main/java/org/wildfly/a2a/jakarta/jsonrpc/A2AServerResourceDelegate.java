@@ -115,7 +115,7 @@ public class A2AServerResourceDelegate {
             response = new A2AErrorResponse(new JSONParseError(e.getMessage()));
         } catch (Throwable t) {
             LOGGER.error("Unexpected error processing request: {}", t.getMessage(), t);
-            response = new A2AErrorResponse(new InternalError(t.getMessage()));
+            response = new A2AErrorResponse(new InternalError("Internal error"));
         }
 
         String serialized = serializeResponse(response);
@@ -170,7 +170,7 @@ public class A2AServerResourceDelegate {
             return;
         } catch (Throwable e) {
             LOGGER.error("Unexpected error processing streaming request: {}", e.getMessage(), e);
-            sendJsonRpcError(response, null, new InternalError(e.getMessage()));
+            sendJsonRpcError(response, null, new InternalError("Internal error"));
             return;
         }
 
@@ -194,7 +194,7 @@ public class A2AServerResourceDelegate {
             sendErrorSSE(response, request.getId(), e);
         } catch (Throwable e) {
             LOGGER.error("Unexpected error processing streaming request: {}", e.getMessage(), e);
-            sendErrorSSE(response, null, new InternalError(e.getMessage()));
+            sendErrorSSE(response, null, new InternalError("Internal error"));
         }
 
         LOGGER.debug("Completed streaming request processing");

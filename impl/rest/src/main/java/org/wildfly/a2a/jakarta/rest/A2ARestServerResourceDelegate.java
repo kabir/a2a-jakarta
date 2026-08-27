@@ -63,7 +63,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
@@ -187,7 +188,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
@@ -211,7 +213,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
@@ -229,7 +232,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
@@ -247,7 +251,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
@@ -265,7 +270,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
@@ -303,7 +309,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         }
         return Response.status(response.getStatusCode())
                 .header(CONTENT_TYPE, response.getContentType())
@@ -320,7 +327,8 @@ public class A2ARestServerResourceDelegate {
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
-            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError(t.getMessage()));
+            LOGGER.error("Internal error while processing request", t);
+            response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
