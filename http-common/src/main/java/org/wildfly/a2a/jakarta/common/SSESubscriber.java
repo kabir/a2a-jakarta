@@ -41,8 +41,12 @@ public class SSESubscriber implements Flow.Subscriber<String> {
     public void onSubscribe(Flow.Subscription subscription) {
         LOGGER.debug("Custom SSE subscriber onSubscribe called");
         this.subscription = subscription;
-        // Use backpressure: request one item at a time
-        subscription.request(1);
+        // Request all events upfront (mirrors the a2a-java reference SseResponseWriter, see
+        // a2a-java #906): a single-item demand window drops back-to-back emissions from the
+        // EventConsumer. The EventConsumer's internal buffer (256 items) is the only bound, and
+        // EventConsumer.BUFFER_FLUSH_DELAY_MS guarantees the final write is flushed before
+        // onComplete fires — so write-level backpressure via request(1) is neither needed nor safe.
+        subscription.request(Long.MAX_VALUE);
 
         // Notify tests that we are subscribed
         Runnable runnable = streamingIsSubscribedRunnable;
@@ -71,9 +75,6 @@ public class SSESubscriber implements Flow.Subscriber<String> {
             }
 
             LOGGER.info("Custom SSE event sent successfully with id: {}", id);
-
-            // Request next item (backpressure)
-            subscription.request(1);
         } catch (Exception e) {
             LOGGER.error("Error writing SSE event: {}", e.getMessage(), e);
             onError(e);
