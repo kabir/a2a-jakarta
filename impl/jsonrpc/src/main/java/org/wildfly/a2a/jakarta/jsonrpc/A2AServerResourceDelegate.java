@@ -2,6 +2,7 @@ package org.wildfly.a2a.jakarta.jsonrpc;
 
 import static org.a2aproject.sdk.server.ServerCallContext.TRANSPORT_KEY;
 import static org.a2aproject.sdk.transport.jsonrpc.context.JSONRPCContextKeys.HEADERS_KEY;
+import static org.a2aproject.sdk.transport.jsonrpc.context.JSONRPCContextKeys.METHOD_NAME_KEY;
 import static org.a2aproject.sdk.transport.jsonrpc.context.JSONRPCContextKeys.TENANT_KEY;
 
 import java.io.IOException;
@@ -93,7 +94,8 @@ public class A2AServerResourceDelegate {
         LOGGER.debug("Handling non-streaming request");
         A2AResponse<?> response;
         try {
-            A2ARequest<?> request = JSONRPCUtils.parseRequestBody(body, null);
+            A2ARequest<?> request = JSONRPCUtils.parseRequestBody(body, readTenant(httpRequest));
+            context.getState().put(METHOD_NAME_KEY, request.getMethod());
             response = processNonStreamingRequest((NonStreamingJSONRPCRequest<?>) request, context);
         } catch (InvalidParamsJsonMappingException e) {
             LOGGER.warn("Invalid params in request: {}", e.getMessage());
@@ -138,7 +140,8 @@ public class A2AServerResourceDelegate {
 
         A2ARequest<?> request = null;
         try {
-            request = JSONRPCUtils.parseRequestBody(body, null);
+            request = JSONRPCUtils.parseRequestBody(body, readTenant(httpRequest));
+            context.getState().put(METHOD_NAME_KEY, request.getMethod());
             validateStreamingRequest((StreamingJSONRPCRequest<?>) request, context);
         } catch (A2AError e) {
             LOGGER.debug("A2AError validating streaming request: {}", e.getMessage());
