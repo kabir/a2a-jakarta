@@ -26,7 +26,9 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
 import org.a2aproject.sdk.common.A2AHeaders;
+import org.wildfly.a2a.jakarta.common.A2ARequestAttributes;
 import org.wildfly.a2a.jakarta.common.SSESubscriber;
+import org.wildfly.a2a.jakarta.common.TenantHolder;
 import org.a2aproject.sdk.server.ServerCallContext;
 import org.a2aproject.sdk.server.auth.UnauthenticatedUser;
 import org.a2aproject.sdk.server.auth.User;
@@ -47,11 +49,13 @@ public class A2ARestServerResourceDelegate {
     private static final String STATUS_TIMESTAMP_AFTER = "statusTimestampAfter";
 
     private final RestHandler restHandler;
+    private final TenantHolder tenantHolder;
 
     private static volatile Runnable streamingIsSubscribedRunnable;
 
-    public A2ARestServerResourceDelegate(RestHandler restHandler) {
+    public A2ARestServerResourceDelegate(RestHandler restHandler, TenantHolder tenantHolder) {
         this.restHandler = restHandler;
+        this.tenantHolder = tenantHolder;
     }
 
     @SuppressWarnings("ReturnValueIgnored")
@@ -59,7 +63,7 @@ public class A2ARestServerResourceDelegate {
         ServerCallContext context = createCallContext(httpRequest, securityContext);
         RestHandler.HTTPRestResponse response = null;
         try {
-            response = restHandler.sendMessage(context, extractTenant(httpRequest), body);
+            response = restHandler.sendMessage(context, readTenant(httpRequest), body);
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
@@ -78,7 +82,8 @@ public class A2ARestServerResourceDelegate {
         RestHandler.HTTPRestStreamingResponse streamingResponse = null;
         RestHandler.HTTPRestResponse error = null;
         try {
-            RestHandler.HTTPRestResponse response = restHandler.sendStreamingMessage(context, extractTenant(httpRequest), body);
+            // Streaming path: read the tenant from the @RequestScoped TenantHolder, not the servlet request attribute — the attribute is not reliably visible on the RESTEasy SSE async writer thread (see the Task 2 spike); the holder is re-associated on the async thread within the same request.
+            RestHandler.HTTPRestResponse response = restHandler.sendStreamingMessage(context, tenantHolder.getTenant(), body);
             if (response instanceof RestHandler.HTTPRestStreamingResponse hTTPRestStreamingResponse) {
                 streamingResponse = hTTPRestStreamingResponse;
             } else {
@@ -98,7 +103,8 @@ public class A2ARestServerResourceDelegate {
         RestHandler.HTTPRestStreamingResponse streamingResponse = null;
         RestHandler.HTTPRestResponse error = null;
         try {
-            RestHandler.HTTPRestResponse response = restHandler.subscribeToTask(context, extractTenant(httpRequest), taskId);
+            // Streaming path: read the tenant from the @RequestScoped TenantHolder, not the servlet request attribute — the attribute is not reliably visible on the RESTEasy SSE async writer thread (see the Task 2 spike); the holder is re-associated on the async thread within the same request.
+            RestHandler.HTTPRestResponse response = restHandler.subscribeToTask(context, tenantHolder.getTenant(), taskId);
             if (response instanceof RestHandler.HTTPRestStreamingResponse hTTPRestStreamingResponse) {
                 streamingResponse = hTTPRestStreamingResponse;
             } else {
@@ -113,8 +119,8 @@ public class A2ARestServerResourceDelegate {
         }
     }
 
-    public Response getAgentCard() {
-        RestHandler.HTTPRestResponse response = restHandler.getAgentCard();
+    public Response getAgentCard(HttpServletRequest httpRequest) {
+        RestHandler.HTTPRestResponse response = restHandler.getAgentCard(readTenant(httpRequest));
 
         String etag = "\"" + Integer.toHexString(response.getBody().hashCode()) + "\"";
 
@@ -132,7 +138,7 @@ public class A2ARestServerResourceDelegate {
 
     public Response getAuthenticatedExtendedCard(HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext);
-        RestHandler.HTTPRestResponse response = restHandler.getExtendedAgentCard(context, extractTenant(httpRequest));
+        RestHandler.HTTPRestResponse response = restHandler.getExtendedAgentCard(context, readTenant(httpRequest));
         return Response.status(response.getStatusCode())
                 .header(CONTENT_TYPE, response.getContentType())
                 .entity(response.getBody())
@@ -141,7 +147,7 @@ public class A2ARestServerResourceDelegate {
 
     public Response getExtendedAgentCard(HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext);
-        RestHandler.HTTPRestResponse response = restHandler.getExtendedAgentCard(context, extractTenant(httpRequest));
+        RestHandler.HTTPRestResponse response = restHandler.getExtendedAgentCard(context, readTenant(httpRequest));
         return Response.status(response.getStatusCode())
                 .header(CONTENT_TYPE, response.getContentType())
                 .entity(response.getBody())
@@ -179,7 +185,7 @@ public class A2ARestServerResourceDelegate {
                 includeArtifacts = Boolean.valueOf(includeArtifactsStr);
             }
 
-            response = restHandler.listTasks(context, extractTenant(httpRequest), contextId, statusStr, pageSize,
+            response = restHandler.listTasks(context, readTenant(httpRequest), contextId, statusStr, pageSize,
                     pageToken, historyLength, statusTimestampAfter, includeArtifacts);
         } catch (NumberFormatException e) {
             response = restHandler.createErrorResponse(new InvalidParamsError("Invalid number format in parameters"));
@@ -207,7 +213,7 @@ public class A2ARestServerResourceDelegate {
             if (historyLengthStr != null && !historyLengthStr.isEmpty()) {
                 historyLength = Integer.valueOf(historyLengthStr);
             }
-            response = restHandler.getTask(context, extractTenant(httpRequest), taskId, historyLength);
+            response = restHandler.getTask(context, readTenant(httpRequest), taskId, historyLength);
         } catch (NumberFormatException e) {
             response = restHandler.createErrorResponse(new InvalidParamsError("bad historyLength"));
         } catch (A2AError e) {
@@ -228,7 +234,7 @@ public class A2ARestServerResourceDelegate {
         ServerCallContext context = createCallContext(httpRequest, securityContext);
         RestHandler.HTTPRestResponse response = null;
         try {
-            response = restHandler.cancelTask(context, extractTenant(httpRequest), body, taskId);
+            response = restHandler.cancelTask(context, readTenant(httpRequest), body, taskId);
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
@@ -247,7 +253,7 @@ public class A2ARestServerResourceDelegate {
         ServerCallContext context = createCallContext(httpRequest, securityContext);
         RestHandler.HTTPRestResponse response = null;
         try {
-            response = restHandler.createTaskPushNotificationConfiguration(context, extractTenant(httpRequest), body, taskId);
+            response = restHandler.createTaskPushNotificationConfiguration(context, readTenant(httpRequest), body, taskId);
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
@@ -266,7 +272,7 @@ public class A2ARestServerResourceDelegate {
         ServerCallContext context = createCallContext(httpRequest, securityContext);
         RestHandler.HTTPRestResponse response = null;
         try {
-            response = restHandler.getTaskPushNotificationConfiguration(context, extractTenant(httpRequest), taskId, configId);
+            response = restHandler.getTaskPushNotificationConfiguration(context, readTenant(httpRequest), taskId, configId);
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
@@ -289,7 +295,7 @@ public class A2ARestServerResourceDelegate {
             } else {
                 String requestURI = httpRequest.getRequestURI();
                 if (requestURI.endsWith("/")) {
-                    response = restHandler.getTaskPushNotificationConfiguration(context, extractTenant(httpRequest),
+                    response = restHandler.getTaskPushNotificationConfiguration(context, readTenant(httpRequest),
                             taskId, null);
                 } else {
                     int pageSize = 0;
@@ -300,7 +306,7 @@ public class A2ARestServerResourceDelegate {
                     if (httpRequest.getParameter(PAGE_TOKEN_PARAM) != null) {
                         pageToken = httpRequest.getParameter(PAGE_TOKEN_PARAM);
                     }
-                    response = restHandler.listTaskPushNotificationConfigurations(context, extractTenant(httpRequest),
+                    response = restHandler.listTaskPushNotificationConfigurations(context, readTenant(httpRequest),
                             taskId, pageSize, pageToken);
                 }
             }
@@ -323,7 +329,7 @@ public class A2ARestServerResourceDelegate {
         ServerCallContext context = createCallContext(httpRequest, securityContext);
         RestHandler.HTTPRestResponse response = null;
         try {
-            response = restHandler.deleteTaskPushNotificationConfiguration(context, extractTenant(httpRequest), taskId, configId);
+            response = restHandler.deleteTaskPushNotificationConfiguration(context, readTenant(httpRequest), taskId, configId);
         } catch (A2AError e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
@@ -395,7 +401,7 @@ public class A2ARestServerResourceDelegate {
         }
 
         state.put(HEADERS_KEY, headers);
-        state.put(TENANT_KEY, extractTenant(request));
+        state.put(TENANT_KEY, readTenant(request));
         state.put(TRANSPORT_KEY, TransportProtocol.HTTP_JSON);
 
         Enumeration<String> en = request.getHeaders(A2AHeaders.A2A_EXTENSIONS);
@@ -408,36 +414,8 @@ public class A2ARestServerResourceDelegate {
         return new ServerCallContext(user, state, requestedExtensions, requestedVersion);
     }
 
-    private String extractTenant(HttpServletRequest request) {
-        String requestURI = request.getRequestURI();
-        if (requestURI == null || requestURI.isBlank()) {
-            return "";
-        }
-
-        if (requestURI.startsWith("/")) {
-            requestURI = requestURI.substring(1);
-        }
-
-        int slashIndex = requestURI.indexOf('/');
-        int colonIndex = requestURI.indexOf(':');
-        String firstSegment;
-
-        if (colonIndex >= 0 && (slashIndex < 0 || colonIndex < slashIndex)) {
-            firstSegment = requestURI.substring(0, colonIndex);
-        } else if (slashIndex > 0) {
-            firstSegment = requestURI.substring(0, slashIndex);
-        } else {
-            firstSegment = requestURI;
-        }
-
-        if (firstSegment.equals("message") ||
-            firstSegment.equals("tasks") ||
-            firstSegment.equals("card") ||
-            firstSegment.equals("extendedAgentCard") ||
-            firstSegment.equals(".well-known")) {
-            return "";
-        }
-
-        return firstSegment;
+    private static String readTenant(HttpServletRequest request) {
+        Object t = request.getAttribute(A2ARequestAttributes.A2A_TENANT_ATTR);
+        return t instanceof String s ? s : "";
     }
 }

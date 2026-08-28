@@ -200,8 +200,8 @@ public class A2AServerResourceDelegate {
         LOGGER.debug("Completed streaming request processing");
     }
 
-    public Response getAgentCard() {
-        AgentCard agentCard = jsonRpcHandler.getAgentCard();
+    public Response getAgentCard(HttpServletRequest httpRequest) {
+        AgentCard agentCard = jsonRpcHandler.getAgentCard(readTenant(httpRequest));
 
         String etag = "\"" + Integer.toHexString(agentCard.hashCode()) + "\"";
 
@@ -428,25 +428,16 @@ public class A2AServerResourceDelegate {
             extensionHeaderValues.add(en.nextElement());
         }
         Set<String> requestedExtensions = A2AExtensions.getRequestedExtensions(extensionHeaderValues);
-        state.put(TENANT_KEY, extractTenant(request));
+        state.put(TENANT_KEY, readTenant(request));
         state.put(TRANSPORT_KEY, TransportProtocol.JSONRPC);
 
         String requestedVersion = request.getHeader(A2AHeaders.A2A_VERSION);
         return new ServerCallContext(user, state, requestedExtensions, requestedVersion);
     }
 
-    private String extractTenant(HttpServletRequest request) {
-        String tenantPath = request.getRequestURI();
-        if (tenantPath == null || tenantPath.isBlank()) {
-            return "";
-        }
-        if (tenantPath.startsWith("/")) {
-            tenantPath = tenantPath.substring(1);
-        }
-        if(tenantPath.endsWith("/")) {
-            tenantPath = tenantPath.substring(0, tenantPath.length() -1);
-        }
-        return tenantPath;
+    private static String readTenant(HttpServletRequest request) {
+        Object t = request.getAttribute(org.wildfly.a2a.jakarta.common.A2ARequestAttributes.A2A_TENANT_ATTR);
+        return t instanceof String s ? s : "";
     }
 
     static String serializeResponse(A2AResponse<?> response) {

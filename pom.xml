@@ -188,6 +188,11 @@
                 <type>test-jar</type>
             </dependency>
             <dependency>
+                <groupId>org.a2aproject.sdk</groupId>
+                <artifactId>a2a-java-extras-multitenancy</artifactId>
+                <version>${version.sdk}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.rest-assured</groupId>
                 <artifactId>rest-assured</artifactId>
                 <version>${version.rest-assured}</version>
