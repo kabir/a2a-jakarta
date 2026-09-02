@@ -90,6 +90,7 @@ public class A2ARestServerResourceDelegate {
     }
 
     public void sendMessageStreaming(String body, HttpServletRequest httpRequest, HttpServletResponse httpResponse, SecurityContext securityContext) throws IOException {
+        LOGGER.info("REST sendMessageStreaming called from {}", httpRequest.getRemoteAddr());
         ServerCallContext context = createCallContext(httpRequest, securityContext, SEND_STREAMING_MESSAGE_METHOD);
         RestHandler.HTTPRestStreamingResponse streamingResponse = null;
         RestHandler.HTTPRestResponse error = null;
@@ -103,14 +104,17 @@ public class A2ARestServerResourceDelegate {
             }
         } finally {
             if (error != null) {
+                LOGGER.info("REST sendMessageStreaming returning error: status={}", error.getStatusCode());
                 sendErrorResponse(httpResponse, error);
             } else {
                 handleCustomSSEResponse(streamingResponse.getPublisher(), httpResponse, context);
+                LOGGER.info("REST sendMessageStreaming SSE stream ended");
             }
         }
     }
 
     public void resubscribeTask(String taskId, HttpServletRequest httpRequest, HttpServletResponse httpResponse, SecurityContext securityContext) throws IOException {
+        LOGGER.info("REST resubscribeTask called for taskId={} from {}", taskId, httpRequest.getRemoteAddr());
         ServerCallContext context = createCallContext(httpRequest, securityContext, SUBSCRIBE_TO_TASK_METHOD);
         RestHandler.HTTPRestStreamingResponse streamingResponse = null;
         RestHandler.HTTPRestResponse error = null;
@@ -124,9 +128,11 @@ public class A2ARestServerResourceDelegate {
             }
         } finally {
             if (error != null) {
+                LOGGER.info("REST resubscribeTask returning error for taskId={}: status={}, body={}", taskId, error.getStatusCode(), error.getBody());
                 sendErrorResponse(httpResponse, error);
             } else {
                 handleCustomSSEResponse(streamingResponse.getPublisher(), httpResponse, context);
+                LOGGER.info("REST resubscribeTask SSE stream ended for taskId={}", taskId);
             }
         }
     }
@@ -243,6 +249,7 @@ public class A2ARestServerResourceDelegate {
 
     @SuppressWarnings("ReturnValueIgnored")
     public Response cancelTask(String taskId, String body, HttpServletRequest httpRequest, SecurityContext securityContext) {
+        LOGGER.info("REST cancelTask called for taskId={} from {}", taskId, httpRequest.getRemoteAddr());
         ServerCallContext context = createCallContext(httpRequest, securityContext, CANCEL_TASK_METHOD);
         RestHandler.HTTPRestResponse response = null;
         try {
@@ -253,6 +260,7 @@ public class A2ARestServerResourceDelegate {
             LOGGER.error("Internal error while processing request", t);
             response = restHandler.createErrorResponse(new org.a2aproject.sdk.spec.InternalError("Internal error"));
         } finally {
+            LOGGER.info("REST cancelTask response for taskId={}: status={}, body={}", taskId, response.getStatusCode(), response.getBody());
             return Response.status(response.getStatusCode())
                     .header(CONTENT_TYPE, response.getContentType())
                     .entity(response.getBody())
