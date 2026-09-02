@@ -9,6 +9,9 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  ITK_LOG_LEVEL: DEBUG
+
 permissions:
   contents: read
 

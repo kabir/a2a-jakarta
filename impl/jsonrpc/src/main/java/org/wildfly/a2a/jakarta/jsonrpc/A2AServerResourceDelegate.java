@@ -2,6 +2,7 @@ package org.wildfly.a2a.jakarta.jsonrpc;
 
 import static org.a2aproject.sdk.server.ServerCallContext.TRANSPORT_KEY;
 import static org.a2aproject.sdk.transport.jsonrpc.context.JSONRPCContextKeys.HEADERS_KEY;
+import static org.a2aproject.sdk.transport.jsonrpc.context.JSONRPCContextKeys.METHOD_NAME_KEY;
 import static org.a2aproject.sdk.transport.jsonrpc.context.JSONRPCContextKeys.TENANT_KEY;
 
 import java.io.IOException;
@@ -93,7 +94,8 @@ public class A2AServerResourceDelegate {
         LOGGER.debug("Handling non-streaming request");
         A2AResponse<?> response;
         try {
-            A2ARequest<?> request = JSONRPCUtils.parseRequestBody(body, null);
+            A2ARequest<?> request = JSONRPCUtils.parseRequestBody(body, readTenant(httpRequest));
+            context.getState().put(METHOD_NAME_KEY, request.getMethod());
             response = processNonStreamingRequest((NonStreamingJSONRPCRequest<?>) request, context);
         } catch (InvalidParamsJsonMappingException e) {
             LOGGER.warn("Invalid params in request: {}", e.getMessage());
@@ -115,7 +117,7 @@ public class A2AServerResourceDelegate {
             response = new A2AErrorResponse(new JSONParseError(e.getMessage()));
         } catch (Throwable t) {
             LOGGER.error("Unexpected error processing request: {}", t.getMessage(), t);
-            response = new A2AErrorResponse(new InternalError(t.getMessage()));
+            response = new A2AErrorResponse(new InternalError("Internal error"));
         }
 
         String serialized = serializeResponse(response);
@@ -138,7 +140,8 @@ public class A2AServerResourceDelegate {
 
         A2ARequest<?> request = null;
         try {
-            request = JSONRPCUtils.parseRequestBody(body, null);
+            request = JSONRPCUtils.parseRequestBody(body, readTenant(httpRequest));
+            context.getState().put(METHOD_NAME_KEY, request.getMethod());
             validateStreamingRequest((StreamingJSONRPCRequest<?>) request, context);
         } catch (A2AError e) {
             LOGGER.debug("A2AError validating streaming request: {}", e.getMessage());
@@ -170,7 +173,7 @@ public class A2AServerResourceDelegate {
             return;
         } catch (Throwable e) {
             LOGGER.error("Unexpected error processing streaming request: {}", e.getMessage(), e);
-            sendJsonRpcError(response, null, new InternalError(e.getMessage()));
+            sendJsonRpcError(response, null, new InternalError("Internal error"));
             return;
         }
 
@@ -194,14 +197,14 @@ public class A2AServerResourceDelegate {
             sendErrorSSE(response, request.getId(), e);
         } catch (Throwable e) {
             LOGGER.error("Unexpected error processing streaming request: {}", e.getMessage(), e);
-            sendErrorSSE(response, null, new InternalError(e.getMessage()));
+            sendErrorSSE(response, null, new InternalError("Internal error"));
         }
 
         LOGGER.debug("Completed streaming request processing");
     }
 
-    public Response getAgentCard() {
-        AgentCard agentCard = jsonRpcHandler.getAgentCard();
+    public Response getAgentCard(HttpServletRequest httpRequest) {
+        AgentCard agentCard = jsonRpcHandler.getAgentCard(readTenant(httpRequest));
 
         String etag = "\"" + Integer.toHexString(agentCard.hashCode()) + "\"";
 
@@ -286,7 +289,11 @@ public class A2AServerResourceDelegate {
             public void onSubscribe(Flow.Subscription subscription) {
                 LOGGER.debug("Custom SSE subscriber onSubscribe called");
                 this.subscription = subscription;
-                subscription.request(1);
+                // Request all events upfront (mirrors the a2a-java reference SseResponseWriter, see
+                // a2a-java #906): a single-item demand window drops back-to-back emissions from the
+                // EventConsumer. EventConsumer.BUFFER_FLUSH_DELAY_MS guarantees the final write is
+                // flushed before onComplete fires, so write-level backpressure is not needed.
+                subscription.request(Long.MAX_VALUE);
 
                 Runnable runnable = streamingIsSubscribedRunnable;
                 if (runnable != null) {
@@ -311,7 +318,6 @@ public class A2AServerResourceDelegate {
                     }
 
                     LOGGER.debug("Custom SSE event sent successfully with id: {}", id);
-                    subscription.request(1);
                 } catch (Exception e) {
                     LOGGER.error("Error writing SSE event: {}", e.getMessage(), e);
                     onError(e);
@@ -428,25 +434,16 @@ public class A2AServerResourceDelegate {
             extensionHeaderValues.add(en.nextElement());
         }
         Set<String> requestedExtensions = A2AExtensions.getRequestedExtensions(extensionHeaderValues);
-        state.put(TENANT_KEY, extractTenant(request));
+        state.put(TENANT_KEY, readTenant(request));
         state.put(TRANSPORT_KEY, TransportProtocol.JSONRPC);
 
         String requestedVersion = request.getHeader(A2AHeaders.A2A_VERSION);
         return new ServerCallContext(user, state, requestedExtensions, requestedVersion);
     }
 
-    private String extractTenant(HttpServletRequest request) {
-        String tenantPath = request.getRequestURI();
-        if (tenantPath == null || tenantPath.isBlank()) {
-            return "";
-        }
-        if (tenantPath.startsWith("/")) {
-            tenantPath = tenantPath.substring(1);
-        }
-        if(tenantPath.endsWith("/")) {
-            tenantPath = tenantPath.substring(0, tenantPath.length() -1);
-        }
-        return tenantPath;
+    private static String readTenant(HttpServletRequest request) {
+        Object t = request.getAttribute(org.wildfly.a2a.jakarta.common.A2ARequestAttributes.A2A_TENANT_ATTR);
+        return t instanceof String s ? s : "";
     }
 
     static String serializeResponse(A2AResponse<?> response) {
