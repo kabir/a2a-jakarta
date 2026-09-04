@@ -19,7 +19,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
 import org.a2aproject.sdk.compat03.transport.rest.handler.RestHandler_v0_3;
-import org.wildfly.a2a.jakarta.rest.compat03.A2ARestServerResourceDelegate_v0_3;
+import org.wildfly.a2a.jakarta.common.SSEHeartbeatScheduler;
 
 // JAX-RS @Path annotations cannot be parameterized, so each protocol version requires a separate resource class.
 @Path("/a2a_rest_v0.3/v1")
@@ -28,12 +28,15 @@ public class A2ARestServerResource_v0_3 {
     @Inject
     RestHandler_v0_3 restHandler;
 
+    @Inject
+    SSEHeartbeatScheduler heartbeatScheduler;
+
     private A2ARestServerResourceDelegate_v0_3 delegate;
 
     // Per-request JAX-RS resource — no synchronization needed; each request gets a new instance.
     private A2ARestServerResourceDelegate_v0_3 getDelegate() {
         if (delegate == null) {
-            delegate = new A2ARestServerResourceDelegate_v0_3(restHandler);
+            delegate = new A2ARestServerResourceDelegate_v0_3(restHandler, heartbeatScheduler.getScheduler());
         }
         return delegate;
     }
@@ -72,13 +75,11 @@ public class A2ARestServerResource_v0_3 {
 
     @POST
     @Path("tasks/{taskId}:cancel")
-    @Consumes(MediaType.APPLICATION_JSON)
     public Response cancelTask(@PathParam("taskId") String taskId, @Context HttpServletRequest httpRequest, @Context SecurityContext securityContext) {
         return getDelegate().cancelTask(taskId, httpRequest, securityContext);
     }
 
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.SERVER_SENT_EVENTS)
     @Path("tasks/{taskId}:subscribe")
     public void resubscribeTask(@PathParam("taskId") String taskId, @Context HttpServletRequest httpRequest, @Context HttpServletResponse httpResponse, @Context SecurityContext securityContext) throws IOException {

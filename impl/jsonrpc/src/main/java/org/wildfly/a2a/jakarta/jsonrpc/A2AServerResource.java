@@ -16,6 +16,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
 import org.a2aproject.sdk.transport.jsonrpc.handler.JSONRPCHandler;
+import org.wildfly.a2a.jakarta.common.SSEHeartbeatScheduler;
 
 // JAX-RS @Path annotations cannot be parameterized, so each protocol version requires a separate resource class.
 @Path("/a2a_jsonrpc_v1.0")
@@ -24,12 +25,15 @@ public class A2AServerResource {
     @Inject
     JSONRPCHandler jsonRpcHandler;
 
+    @Inject
+    SSEHeartbeatScheduler heartbeatScheduler;
+
     private A2AServerResourceDelegate delegate;
 
     // Per-request JAX-RS resource — no synchronization needed; each request gets a new instance.
     private A2AServerResourceDelegate getDelegate() {
         if (delegate == null) {
-            delegate = new A2AServerResourceDelegate(jsonRpcHandler);
+            delegate = new A2AServerResourceDelegate(jsonRpcHandler, heartbeatScheduler.getScheduler());
         }
         return delegate;
     }
@@ -37,8 +41,8 @@ public class A2AServerResource {
     @GET
     @Path(".well-known/agent-card.json")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAgentCard() {
-        return getDelegate().getAgentCard();
+    public Response getAgentCard(@Context HttpServletRequest httpRequest) {
+        return getDelegate().getAgentCard(httpRequest);
     }
 
     @POST

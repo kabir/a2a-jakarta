@@ -16,10 +16,11 @@ import jakarta.ws.rs.ext.Provider;
 @Priority(50)
 public class AgentCardRoutingFilter implements ContainerRequestFilter {
 
-    private static final String AGENT_CARD_PATH = ".well-known/agent-card.json";
-
     @Inject
     Instance<A2AVersionProvider> allVersionProviders;
+
+    @Inject
+    TenantHolder tenantHolder;
 
     private volatile boolean initialized;
     private A2AVersionProvider selectedProvider;
@@ -48,14 +49,22 @@ public class AgentCardRoutingFilter implements ContainerRequestFilter {
         }
 
         String path = requestContext.getUriInfo().getPath().trim();
-        if (!path.endsWith(AGENT_CARD_PATH)) {
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        if (!isWellKnownAgentCardPath(path)) {
             return;
         }
 
         ensureInitialized();
-
         if (selectedProvider == null) {
             return;
+        }
+
+        String tenant = A2ARequestAttributes.extractWellKnownTenant(path);
+        if (!tenant.isEmpty()) {
+            requestContext.setProperty(A2ARequestAttributes.A2A_TENANT_ATTR, tenant);
+            tenantHolder.setTenant(tenant);
         }
 
         String prefix = selectedProvider.getInternalPathPrefix();
@@ -63,13 +72,35 @@ public class AgentCardRoutingFilter implements ContainerRequestFilter {
         if (restBasePath != null && !restBasePath.equals("/")) {
             prefix = prefix + restBasePath;
         }
-        String newPath = prefix + (path.startsWith("/") ? path : "/" + path);
+        String newPath = prefix + "/.well-known/agent-card.json";
 
         URI baseUri = requestContext.getUriInfo().getBaseUri();
         URI requestUri = requestContext.getUriInfo().getRequestUri();
         URI newRequestUri = UriBuilder.fromUri(requestUri)
                 .replacePath(baseUri.getPath() + newPath).build();
         requestContext.setRequestUri(baseUri, newRequestUri);
+    }
+
+    static boolean isWellKnownAgentCardPath(String path) {
+        if (!path.endsWith("/agent-card.json")) {
+            return false;
+        }
+        int wk = path.indexOf("/.well-known/");
+        if (wk < 0) {
+            return false;
+        }
+        if (wk > 0) {
+            String prefix = path.substring(0, wk);
+            if (prefix.equals("/") || !prefix.startsWith("/") || prefix.substring(1).contains("/")) {
+                return false;
+            }
+        }
+        String afterWellKnown = path.substring(wk + "/.well-known/".length());
+        if (afterWellKnown.equals("agent-card.json")) {
+            return true;
+        }
+        int slash = afterWellKnown.indexOf('/');
+        return slash > 0 && afterWellKnown.substring(slash + 1).equals("agent-card.json");
     }
 
     private static int compareVersions(String v1, String v2) {
