@@ -1,6 +1,7 @@
 package org.wildfly.a2a.jakarta.test.multitenancy.jsonrpc;
 
 import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.getJarForClass;
+import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.prepareMultiTenantTestCommonJar;
 
 import java.util.List;
 
@@ -18,7 +19,6 @@ import org.a2aproject.sdk.client.transport.jsonrpc.JSONRPCTransportProvider;
 import org.a2aproject.sdk.client.transport.spi.ClientTransport;
 import org.a2aproject.sdk.extras.multitenancy.CdiAgentExecutorRouter;
 import org.a2aproject.sdk.extras.multitenancy.tests.AbstractMultiTenantServerTest;
-import org.a2aproject.sdk.extras.multitenancy.tests.MultiTenantAgentCardProducer;
 import org.a2aproject.sdk.grpc.utils.JSONRPCUtils;
 import org.a2aproject.sdk.integrations.microprofile.MicroProfileConfigProvider;
 import org.a2aproject.sdk.jsonrpc.common.json.JsonUtil;
@@ -32,7 +32,6 @@ import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.junit5.container.annotation.ArquillianTest;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.wildfly.a2a.jakarta.common.AsyncManagedExecutorServiceProducer;
@@ -63,25 +62,7 @@ public class MultiTenantJsonRpcTest extends AbstractMultiTenantServerTest {
 
     @Deployment
     public static WebArchive createTestArchive() throws Exception {
-        // TestAuthorizationController extends Quarkus's own AuthorizationController SPI class
-        // (io.quarkus:quarkus-security-runtime-spi), which isn't on WildFly's classpath. It's an
-        // unused CDI bean today — nothing in a2a-java activates it via
-        // quarkus.arc.selected-alternatives — but Weld would still try to load it as a managed bean
-        // and fail the deployment with NoClassDefFoundError. Strip it before packaging.
-        JavaArchive multiTenantTestCommonJar = getJarForClass(MultiTenantAgentCardProducer.class);
-        multiTenantTestCommonJar.delete(
-                "/org/a2aproject/sdk/extras/multitenancy/tests/TestAuthorizationController.class");
-        // MultiTenantAgentCardProducer is annotated with jakarta.inject.Singleton, which is a
-        // pseudo-scope (meta-annotated @Scope, not @NormalScope) and therefore is NOT one of the
-        // CDI "bean defining annotations" that trigger implicit-bean-archive discovery under this
-        // jar's own bean-discovery-mode="annotated" beans.xml. Weld silently skips the class,
-        // leaving @PublicAgentCard/@ExtendedAgentCard unsatisfied at runtime. Widen discovery to
-        // "all" for this archive so the producer (and its sibling classes) are picked up.
-        multiTenantTestCommonJar.delete("/META-INF/beans.xml");
-        multiTenantTestCommonJar.addAsManifestResource(
-                new StringAsset("<beans xmlns=\"https://jakarta.ee/xml/ns/jakartaee\" "
-                        + "bean-discovery-mode=\"all\"/>"),
-                "beans.xml");
+        JavaArchive multiTenantTestCommonJar = prepareMultiTenantTestCommonJar();
 
         JavaArchive[] libraries = List.of(
                 getJarForClass(Assert.class),

@@ -65,5 +65,13 @@
             <artifactId>a2a-java-sdk-compat-0.3-server-conversion</artifactId>
             <scope>provided</scope>
         </dependency>
+
+        <!-- Multitenancy test-common jar, needed by ArchiveUtils.prepareMultiTenantTestCommonJar();
+             provided to avoid leaking to non-multitenancy modules -->
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-extras-multitenancy-tests-test-common</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>
