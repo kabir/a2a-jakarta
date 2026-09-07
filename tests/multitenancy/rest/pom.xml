@@ -142,16 +142,23 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>a2a-jakarta-tests-multitenancy-common</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-extras-multitenancy-tests-test-common</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>a2a-jakarta-tests-multitenancy-common</artifactId>
-            <version>${project.version}</version>
-            <classifier>tests</classifier>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-spi</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-rest</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -217,13 +224,7 @@
                 <configuration>
                     <systemPropertyVariables combine.children="append">
                         <jboss.install.dir>${jboss.home}</jboss.install.dir>
-                        <!--
-                            -Dtest.agent.card.port is understood by the AgentCardProducer in
-                            a2a-java-sdk-tests-server-common.
-                            -Dorg.a2aproject.sdk.transport.skipValidation=true skips the AgentCard
-                            transport validation that rejects JSONRPC in a REST-only deployment.
-                        -->
-                        <server.jvm.args>-Dtest.agent.card.port=8080 -Dorg.a2aproject.sdk.transport.skipValidation=true</server.jvm.args>
+                        <server.jvm.args></server.jvm.args>
                         <jboss.args>${server.jboss.args}</jboss.args>
                     </systemPropertyVariables>
                 </configuration>

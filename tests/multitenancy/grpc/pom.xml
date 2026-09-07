@@ -10,23 +10,34 @@
         <version>1.0.0.Final-SNAPSHOT</version>
     </parent>
 
-    <artifactId>a2a-jakarta-tests-multitenancy-jsonrpc</artifactId>
+    <artifactId>a2a-jakarta-tests-multitenancy-grpc</artifactId>
 
     <packaging>jar</packaging>
 
-    <name>WildFly Extras - A2A Jakarta - Multitenancy Tests - JSON-RPC</name>
-    <description>Java SDK for the Agent2Agent Protocol (A2A) - SDK - Jakarta - Multitenancy JSON-RPC Tests</description>
+    <name>WildFly Extras - A2A Jakarta - Multitenancy Tests - gRPC</name>
+    <description>Java SDK for the Agent2Agent Protocol (A2A) - SDK - Jakarta - Multitenancy gRPC Tests</description>
+
+    <properties>
+        <!-- Server arguments for preview stability level (needed for gRPC) -->
+        <server.jboss.args>--stability=preview</server.jboss.args>
+    </properties>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>a2a-jakarta-jsonrpc</artifactId>
+            <artifactId>a2a-jakarta-grpc</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>a2a-jakarta-http-common</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>a2a-jakarta-http-common</artifactId>
+            <artifactId>a2a-jakarta-tests-common</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -37,7 +48,106 @@
         </dependency>
         <dependency>
             <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-sdk-http-client</artifactId>
+            <artifactId>a2a-java-sdk-spec</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-spec-grpc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-transport-grpc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-spi</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-client-transport-grpc</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-microprofile-config</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-jsonrpc-common</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-extras-multitenancy</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-extras-multitenancy-tests-test-common</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java-util</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.api.grpc</groupId>
+            <artifactId>proto-google-common-protos</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- gRPC dependencies -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>failureaccess</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Jakarta APIs -->
+        <dependency>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -45,21 +155,8 @@
             <artifactId>jakarta.inject-api</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>jakarta.json</groupId>
-            <artifactId>jakarta.json-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.ws.rs</groupId>
-            <artifactId>jakarta.ws.rs-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
-            <scope>test</scope>
-        </dependency>
+
+        <!-- Arquillian testing framework -->
         <dependency>
             <groupId>org.jboss.arquillian.junit5</groupId>
             <artifactId>arquillian-junit5-container</artifactId>
@@ -68,6 +165,13 @@
         <dependency>
             <groupId>org.wildfly.arquillian</groupId>
             <artifactId>wildfly-arquillian-container-managed</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testing utilities -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -95,81 +199,11 @@
             <artifactId>hamcrest</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-sdk-transport-jsonrpc</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-sdk-microprofile-config</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-sdk-jsonrpc-common</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java-util</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.api.grpc</groupId>
-            <artifactId>proto-google-common-protos</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>a2a-jakarta-tests-common</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-extras-multitenancy-tests-test-common</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-sdk-client</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-sdk-client-transport-spi</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-sdk-client-transport-jsonrpc</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.a2aproject.sdk</groupId>
-            <artifactId>a2a-java-extras-multitenancy</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
+
     <build>
         <plugins>
-           <plugin>
+            <plugin>
                 <groupId>org.wildfly.glow</groupId>
                 <artifactId>wildfly-glow-arquillian-plugin</artifactId>
                 <configuration>
@@ -179,8 +213,16 @@
                             <artifactId>wildfly-galleon-pack</artifactId>
                             <version>${version.wildfly}</version>
                         </feature-pack>
+                        <feature-pack>
+                            <groupId>org.wildfly.grpc</groupId>
+                            <artifactId>wildfly-grpc-feature-pack</artifactId>
+                            <version>${version.wildfly.grpc}</version>
+                        </feature-pack>
                     </feature-packs>
                     <config-name>standalone.xml</config-name>
+                    <add-ons>
+                        <add-on>grpc</add-on>
+                    </add-ons>
                 </configuration>
                 <executions>
                     <execution>
@@ -199,13 +241,10 @@
                     <provisioning-file>${project.build.directory}/glow-scan/provisioning.xml</provisioning-file>
                     <jboss-home>${jboss.home}</jboss-home>
                     <provisioning-dir>${jboss.home}</provisioning-dir>
-                    <packagingScripts>
-                        <packaging-script>
-                            <scripts>
-                                <script>./src/scripts/configure_logger.cli</script>
-                            </scripts>
-                        </packaging-script>
-                    </packagingScripts>
+                    <galleon-options>
+                        <jboss-fork-embedded>true</jboss-fork-embedded>
+                        <stability-level>preview</stability-level>
+                    </galleon-options>
                 </configuration>
                 <executions>
                     <execution>
@@ -217,7 +256,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Surefire plugin for running tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
