@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+import java.util.concurrent.ScheduledExecutorService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -55,29 +56,27 @@ public class A2ARestServerResourceDelegate_v0_3 {
     private static final Logger LOGGER = LoggerFactory.getLogger(A2ARestServerResourceDelegate_v0_3.class);
 
     private final RestHandler_v0_3 restHandler;
+    private final ScheduledExecutorService heartbeatScheduler;
 
-    private static volatile Runnable streamingIsSubscribedRunnable;
-
-    public A2ARestServerResourceDelegate_v0_3(RestHandler_v0_3 restHandler) {
+    public A2ARestServerResourceDelegate_v0_3(RestHandler_v0_3 restHandler, ScheduledExecutorService heartbeatScheduler) {
         this.restHandler = restHandler;
+        this.heartbeatScheduler = heartbeatScheduler;
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
     public Response sendMessage(String body, HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext, SendMessageRequest_v0_3.METHOD);
-        RestHandler_v0_3.HTTPRestResponse response = null;
+        RestHandler_v0_3.HTTPRestResponse response;
         try {
             response = restHandler.sendMessage(body, context);
         } catch (JSONRPCError_v0_3 e) {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
             response = restHandler.createErrorResponse(new InternalError_v0_3(t.getMessage()));
-        } finally {
-            return Response.status(response.getStatusCode())
-                    .header(CONTENT_TYPE, response.getContentType())
-                    .entity(response.getBody())
-                    .build();
         }
+        return Response.status(response.getStatusCode())
+                .header(CONTENT_TYPE, response.getContentType())
+                .entity(response.getBody())
+                .build();
     }
 
     public void sendMessageStreaming(String body, HttpServletRequest httpRequest, HttpServletResponse httpResponse, SecurityContext securityContext) throws IOException {
@@ -91,20 +90,24 @@ public class A2ARestServerResourceDelegate_v0_3 {
             } else {
                 error = response;
             }
-        } finally {
-            if (error != null) {
-                sendErrorResponse(httpResponse, error);
-            } else {
-                handleCustomSSEResponse(streamingResponse.getPublisher(), httpResponse, context);
-            }
+        } catch (Throwable t) {
+            LOGGER.error("Internal error while processing streaming request", t);
+            error = restHandler.createErrorResponse(new InternalError_v0_3("Internal error"));
+        }
+        if (error != null) {
+            sendErrorResponse(httpResponse, error);
+        } else if (streamingResponse != null) {
+            handleCustomSSEResponse(streamingResponse.getPublisher(), httpResponse);
+        } else {
+            sendErrorResponse(httpResponse,
+                    restHandler.createErrorResponse(new InternalError_v0_3("Internal error")));
         }
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
     public Response getTask(String taskId, String historyLengthSnakeStr, String historyLengthCamelStr,
             HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext, GetTaskRequest_v0_3.METHOD);
-        RestHandler_v0_3.HTTPRestResponse response = null;
+        RestHandler_v0_3.HTTPRestResponse response;
         try {
             if (taskId == null || taskId.isEmpty()) {
                 response = restHandler.createErrorResponse(new InvalidParamsError_v0_3("bad task id"));
@@ -131,18 +134,16 @@ public class A2ARestServerResourceDelegate_v0_3 {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
             response = restHandler.createErrorResponse(new InternalError_v0_3(t.getMessage()));
-        } finally {
-            return Response.status(response.getStatusCode())
-                    .header(CONTENT_TYPE, response.getContentType())
-                    .entity(response.getBody())
-                    .build();
         }
+        return Response.status(response.getStatusCode())
+                .header(CONTENT_TYPE, response.getContentType())
+                .entity(response.getBody())
+                .build();
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
     public Response cancelTask(String taskId, HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext, CancelTaskRequest_v0_3.METHOD);
-        RestHandler_v0_3.HTTPRestResponse response = null;
+        RestHandler_v0_3.HTTPRestResponse response;
         try {
             if (taskId == null || taskId.isEmpty()) {
                 response = restHandler.createErrorResponse(new InvalidParamsError_v0_3("bad task id"));
@@ -153,12 +154,11 @@ public class A2ARestServerResourceDelegate_v0_3 {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
             response = restHandler.createErrorResponse(new InternalError_v0_3(t.getMessage()));
-        } finally {
-            return Response.status(response.getStatusCode())
-                    .header(CONTENT_TYPE, response.getContentType())
-                    .entity(response.getBody())
-                    .build();
         }
+        return Response.status(response.getStatusCode())
+                .header(CONTENT_TYPE, response.getContentType())
+                .entity(response.getBody())
+                .build();
     }
 
     public void resubscribeTask(String taskId, HttpServletRequest httpRequest, HttpServletResponse httpResponse, SecurityContext securityContext) throws IOException {
@@ -176,12 +176,17 @@ public class A2ARestServerResourceDelegate_v0_3 {
                     error = response;
                 }
             }
-        } finally {
-            if (error != null) {
-                sendErrorResponse(httpResponse, error);
-            } else {
-                handleCustomSSEResponse(streamingResponse.getPublisher(), httpResponse, context);
-            }
+        } catch (Throwable t) {
+            LOGGER.error("Internal error while processing streaming request", t);
+            error = restHandler.createErrorResponse(new InternalError_v0_3("Internal error"));
+        }
+        if (error != null) {
+            sendErrorResponse(httpResponse, error);
+        } else if (streamingResponse != null) {
+            handleCustomSSEResponse(streamingResponse.getPublisher(), httpResponse);
+        } else {
+            sendErrorResponse(httpResponse,
+                    restHandler.createErrorResponse(new InternalError_v0_3("Internal error")));
         }
     }
 
@@ -211,10 +216,9 @@ public class A2ARestServerResourceDelegate_v0_3 {
                 .build();
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
     public Response setTaskPushNotificationConfiguration(String taskId, String body, HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext, SetTaskPushNotificationConfigRequest_v0_3.METHOD);
-        RestHandler_v0_3.HTTPRestResponse response = null;
+        RestHandler_v0_3.HTTPRestResponse response;
         try {
             if (taskId == null || taskId.isEmpty()) {
                 response = restHandler.createErrorResponse(new InvalidParamsError_v0_3("bad task id"));
@@ -225,18 +229,16 @@ public class A2ARestServerResourceDelegate_v0_3 {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
             response = restHandler.createErrorResponse(new InternalError_v0_3(t.getMessage()));
-        } finally {
-            return Response.status(response.getStatusCode())
-                    .header(CONTENT_TYPE, response.getContentType())
-                    .entity(response.getBody())
-                    .build();
         }
+        return Response.status(response.getStatusCode())
+                .header(CONTENT_TYPE, response.getContentType())
+                .entity(response.getBody())
+                .build();
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
     public Response getTaskPushNotificationConfiguration(String taskId, String configId, HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext, GetTaskPushNotificationConfigRequest_v0_3.METHOD);
-        RestHandler_v0_3.HTTPRestResponse response = null;
+        RestHandler_v0_3.HTTPRestResponse response;
         try {
             if (taskId == null || taskId.isEmpty()) {
                 response = restHandler.createErrorResponse(new InvalidParamsError_v0_3("bad task id"));
@@ -247,18 +249,16 @@ public class A2ARestServerResourceDelegate_v0_3 {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
             response = restHandler.createErrorResponse(new InternalError_v0_3(t.getMessage()));
-        } finally {
-            return Response.status(response.getStatusCode())
-                    .header(CONTENT_TYPE, response.getContentType())
-                    .entity(response.getBody())
-                    .build();
         }
+        return Response.status(response.getStatusCode())
+                .header(CONTENT_TYPE, response.getContentType())
+                .entity(response.getBody())
+                .build();
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
     public Response listTaskPushNotificationConfigurations(String taskId, HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext, ListTaskPushNotificationConfigRequest_v0_3.METHOD);
-        RestHandler_v0_3.HTTPRestResponse response = null;
+        RestHandler_v0_3.HTTPRestResponse response;
         try {
             if (taskId == null || taskId.isEmpty()) {
                 response = restHandler.createErrorResponse(new InvalidParamsError_v0_3("bad task id"));
@@ -269,18 +269,16 @@ public class A2ARestServerResourceDelegate_v0_3 {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
             response = restHandler.createErrorResponse(new InternalError_v0_3(t.getMessage()));
-        } finally {
-            return Response.status(response.getStatusCode())
-                    .header(CONTENT_TYPE, response.getContentType())
-                    .entity(response.getBody())
-                    .build();
         }
+        return Response.status(response.getStatusCode())
+                .header(CONTENT_TYPE, response.getContentType())
+                .entity(response.getBody())
+                .build();
     }
 
-    @SuppressWarnings("ReturnValueIgnored")
     public Response deleteTaskPushNotificationConfiguration(String taskId, String configId, HttpServletRequest httpRequest, SecurityContext securityContext) {
         ServerCallContext context = createCallContext(httpRequest, securityContext, DeleteTaskPushNotificationConfigRequest_v0_3.METHOD);
-        RestHandler_v0_3.HTTPRestResponse response = null;
+        RestHandler_v0_3.HTTPRestResponse response;
         try {
             if (taskId == null || taskId.isEmpty()) {
                 response = restHandler.createErrorResponse(new InvalidParamsError_v0_3("bad task id"));
@@ -293,12 +291,11 @@ public class A2ARestServerResourceDelegate_v0_3 {
             response = restHandler.createErrorResponse(e);
         } catch (Throwable t) {
             response = restHandler.createErrorResponse(new InternalError_v0_3(t.getMessage()));
-        } finally {
-            return Response.status(response.getStatusCode())
-                    .header(CONTENT_TYPE, response.getContentType())
-                    .entity(response.getBody())
-                    .build();
         }
+        return Response.status(response.getStatusCode())
+                .header(CONTENT_TYPE, response.getContentType())
+                .entity(response.getBody())
+                .build();
     }
 
     private void sendErrorResponse(HttpServletResponse httpResponse, RestHandler_v0_3.HTTPRestResponse error) throws IOException {
@@ -309,8 +306,7 @@ public class A2ARestServerResourceDelegate_v0_3 {
     }
 
     private void handleCustomSSEResponse(Flow.Publisher<String> publisher,
-            HttpServletResponse response,
-            ServerCallContext context) throws IOException {
+            HttpServletResponse response) throws IOException {
         response.setHeader(CONTENT_TYPE, MediaType.SERVER_SENT_EVENTS);
         response.setHeader("Cache-Control", "no-cache");
         response.setHeader("X-Accel-Buffering", "no");
@@ -319,7 +315,7 @@ public class A2ARestServerResourceDelegate_v0_3 {
         try (PrintWriter writer = response.getWriter()) {
             writer.write(": SSE stream started\n\n");
             writer.flush();
-            publisher.subscribe(new SSESubscriber(streamingComplete, writer, context));
+            publisher.subscribe(new SSESubscriber(streamingComplete, writer, heartbeatScheduler));
             streamingComplete.get();
         } catch (Exception e) {
             LOGGER.error("Error waiting for streaming completion: {}", e.getMessage(), e);
@@ -328,7 +324,6 @@ public class A2ARestServerResourceDelegate_v0_3 {
     }
 
     public static void setStreamingIsSubscribedRunnable(Runnable streamingIsSubscribedRunnable) {
-        A2ARestServerResourceDelegate_v0_3.streamingIsSubscribedRunnable = streamingIsSubscribedRunnable;
         SSESubscriber.setStreamingIsSubscribedRunnable(streamingIsSubscribedRunnable);
     }
 

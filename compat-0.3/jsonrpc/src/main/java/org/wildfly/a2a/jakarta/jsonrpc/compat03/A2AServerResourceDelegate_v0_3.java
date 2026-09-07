@@ -14,6 +14,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Flow;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -71,13 +74,16 @@ import org.slf4j.LoggerFactory;
 public class A2AServerResourceDelegate_v0_3 {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(A2AServerResourceDelegate_v0_3.class);
+    private static final long HEARTBEAT_INTERVAL_MS = 1000;
 
     private final JSONRPCHandler_v0_3 jsonRpcHandler;
+    private final ScheduledExecutorService heartbeatScheduler;
 
     private static volatile Runnable streamingIsSubscribedRunnable;
 
-    public A2AServerResourceDelegate_v0_3(JSONRPCHandler_v0_3 jsonRpcHandler) {
+    public A2AServerResourceDelegate_v0_3(JSONRPCHandler_v0_3 jsonRpcHandler, ScheduledExecutorService heartbeatScheduler) {
         this.jsonRpcHandler = jsonRpcHandler;
+        this.heartbeatScheduler = heartbeatScheduler;
     }
 
     public Response handleNonStreamingRequests(
@@ -341,12 +347,20 @@ public class A2AServerResourceDelegate_v0_3 {
 
         publisher.subscribe(new Flow.Subscriber<JSONRPCResponse_v0_3<?>>() {
             private Flow.Subscription subscription;
+            private volatile boolean disconnected;
+            private ScheduledFuture<?> heartbeatFuture;
 
             @Override
             public void onSubscribe(Flow.Subscription subscription) {
                 LOGGER.debug("Custom SSE subscriber onSubscribe called");
                 this.subscription = subscription;
-                subscription.request(1);
+                heartbeatFuture = heartbeatScheduler.scheduleAtFixedRate(
+                        this::heartbeat, HEARTBEAT_INTERVAL_MS, HEARTBEAT_INTERVAL_MS, TimeUnit.MILLISECONDS);
+                // Request all events upfront (mirrors the a2a-java reference SseResponseWriter, see
+                // a2a-java #906): a single-item demand window drops back-to-back emissions from the
+                // EventConsumer. EventConsumer.BUFFER_FLUSH_DELAY_MS guarantees the final write is
+                // flushed before onComplete fires, so write-level backpressure is not needed.
+                subscription.request(Long.MAX_VALUE);
 
                 Runnable runnable = streamingIsSubscribedRunnable;
                 if (runnable != null) {
@@ -356,6 +370,10 @@ public class A2AServerResourceDelegate_v0_3 {
 
             @Override
             public void onNext(JSONRPCResponse_v0_3<?> item) {
+                if (disconnected) {
+                    LOGGER.debug("SSE onNext: ignoring event (already disconnected)");
+                    return;
+                }
                 LOGGER.debug("Custom SSE subscriber onNext called with item: {}", item);
                 try {
                     long id = eventId.getAndIncrement();
@@ -371,7 +389,6 @@ public class A2AServerResourceDelegate_v0_3 {
                     }
 
                     LOGGER.debug("Custom SSE event sent successfully with id: {}", id);
-                    subscription.request(1);
                 } catch (Exception e) {
                     LOGGER.error("Error writing SSE event: {}", e.getMessage(), e);
                     onError(e);
@@ -381,6 +398,7 @@ public class A2AServerResourceDelegate_v0_3 {
             @Override
             public void onError(Throwable throwable) {
                 LOGGER.debug("Custom SSE subscriber onError called: {}", throwable.getMessage(), throwable);
+                cancelHeartbeat();
                 handleClientDisconnect();
                 streamingComplete.completeExceptionally(throwable);
             }
@@ -388,6 +406,7 @@ public class A2AServerResourceDelegate_v0_3 {
             @Override
             public void onComplete() {
                 LOGGER.debug("Custom SSE subscriber onComplete called");
+                cancelHeartbeat();
                 try {
                     writer.close();
                 } catch (Exception e) {
@@ -397,6 +416,11 @@ public class A2AServerResourceDelegate_v0_3 {
             }
 
             private void handleClientDisconnect() {
+                if (disconnected) {
+                    return;
+                }
+                disconnected = true;
+                cancelHeartbeat();
                 LOGGER.debug("SSE connection closed, calling EventConsumer.cancel() to stop polling loop");
                 if (subscription != null) {
                     subscription.cancel();
@@ -406,6 +430,24 @@ public class A2AServerResourceDelegate_v0_3 {
                     writer.close();
                 } catch (Exception e) {
                     LOGGER.debug("Error closing writer during disconnect: {}", e.getMessage());
+                }
+            }
+
+            private void cancelHeartbeat() {
+                if (heartbeatFuture != null) {
+                    heartbeatFuture.cancel(false);
+                }
+            }
+
+            private void heartbeat() {
+                if (disconnected) {
+                    return;
+                }
+                writer.write(": ping\n\n");
+                writer.flush();
+                if (writer.checkError()) {
+                    LOGGER.info("SSE heartbeat detected client disconnect");
+                    handleClientDisconnect();
                 }
             }
         });

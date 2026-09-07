@@ -1,0 +1,90 @@
+package org.wildfly.a2a.jakarta.test.multitenancy.rest;
+
+import static io.restassured.RestAssured.given;
+import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.getJarForClass;
+
+import java.util.List;
+import java.util.UUID;
+
+import org.a2aproject.sdk.extras.multitenancy.CdiAgentExecutorRouter;
+import org.jboss.arquillian.container.test.api.Deployment;
+import org.jboss.arquillian.container.test.api.RunAsClient;
+import org.jboss.arquillian.junit5.container.annotation.ArquillianTest;
+import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.shrinkwrap.api.spec.JavaArchive;
+import org.jboss.shrinkwrap.api.spec.WebArchive;
+import org.wildfly.a2a.jakarta.test.multitenancy.AbstractMultiTenantTest;
+import org.wildfly.a2a.jakarta.test.multitenancy.MultiTenantAgentCardProducer;
+import org.wildfly.a2a.jakarta.test.multitenancy.TestResponse;
+
+@ArquillianTest
+@RunAsClient
+public class MultiTenantRestTest extends AbstractMultiTenantTest {
+
+    @Deployment
+    public static WebArchive createTestArchive() throws Exception {
+        JavaArchive[] libraries = List.of(
+                getJarForClass(org.a2aproject.sdk.util.Assert.class),
+                // a2a-java-sdk-http-client: needed by BasePushNotificationSender in server-common
+                getJarForClass(org.a2aproject.sdk.client.http.A2AHttpClient.class),
+                getJarForClass(org.a2aproject.sdk.server.PublicAgentCard.class),
+                getJarForClass(org.a2aproject.sdk.spec.Event.class),
+                getJarForClass(org.a2aproject.sdk.grpc.utils.JSONRPCUtils.class),
+                getJarForClass(org.a2aproject.sdk.transport.rest.handler.RestHandler.class),
+                getJarForClass(org.a2aproject.sdk.jsonrpc.common.json.JsonUtil.class),
+                getJarForClass(com.google.gson.Gson.class),
+                getJarForClass(com.google.protobuf.InvalidProtocolBufferException.class),
+                getJarForClass(com.google.protobuf.util.JsonFormat.class),
+                getJarForClass(com.google.api.AnnotationsProto.class),
+                getJarForClass(com.google.common.collect.ImmutableSet.class),
+                // a2a-jakarta-http-common: filters + A2ARequestAttributes
+                getJarForClass(org.wildfly.a2a.jakarta.common.SSESubscriber.class),
+                // a2a-jakarta-rest: resource + delegate
+                getJarForClass(org.wildfly.a2a.jakarta.rest.A2ARestServerResource.class),
+                // microprofile-config: enables reading microprofile-config.properties
+                getJarForClass(org.a2aproject.sdk.integrations.microprofile.MicroProfileConfigProvider.class),
+                getJarForClass(mutiny.zero.ZeroPublisher.class),
+                // extras-multitenancy: CdiAgentExecutorRouter + CdiAgentCardRouter + @Tenant
+                getJarForClass(CdiAgentExecutorRouter.class),
+                // shared tenant producers
+                getJarForClass(MultiTenantAgentCardProducer.class)
+        ).toArray(JavaArchive[]::new);
+
+        return ShrinkWrap.create(WebArchive.class, "ROOT.war")
+                .addAsLibraries(libraries)
+                .addClass(RestApplication.class)
+                .addAsManifestResource("META-INF/beans.xml", "beans.xml")
+                .addAsWebInfResource("WEB-INF/web.xml", "web.xml")
+                .addAsResource("META-INF/disable-authorization-microprofile-config.properties",
+                        "META-INF/microprofile-config.properties");
+    }
+
+    private static String messageBody() {
+        return """
+                {"message":{"messageId":"%s","role":"ROLE_USER","parts":[{"text":"hello"}]}}"""
+                .formatted(UUID.randomUUID());
+    }
+
+    @Override
+    protected TestResponse sendMessage(String tenant) {
+        String path = tenant != null ? "/" + tenant + "/message:send" : "/message:send";
+        var r = given().header("A2A-Version", "1.0").contentType("application/json")
+                .urlEncodingEnabled(false).body(messageBody()).when().post(path);
+        return new TestResponse(r.getStatusCode(), r.getBody().asString());
+    }
+
+    @Override
+    protected TestResponse streamMessage(String tenant) {
+        String path = tenant != null ? "/" + tenant + "/message:stream" : "/message:stream";
+        var r = given().header("A2A-Version", "1.0").contentType("application/json")
+                .urlEncodingEnabled(false).body(messageBody()).when().post(path);
+        return new TestResponse(r.getStatusCode(), r.getBody().asString());
+    }
+
+    @Override
+    protected TestResponse getExtendedCard(String tenant) {
+        String path = tenant != null ? "/" + tenant + "/extendedAgentCard" : "/extendedAgentCard";
+        var r = given().header("A2A-Version", "1.0").when().get(path);
+        return new TestResponse(r.getStatusCode(), r.getBody().asString());
+    }
+}

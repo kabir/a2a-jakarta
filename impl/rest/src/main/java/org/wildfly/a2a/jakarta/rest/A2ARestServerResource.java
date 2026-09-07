@@ -19,6 +19,8 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 
 import org.a2aproject.sdk.transport.rest.handler.RestHandler;
+import org.wildfly.a2a.jakarta.common.SSEHeartbeatScheduler;
+import org.wildfly.a2a.jakarta.common.TenantHolder;
 
 // JAX-RS @Path annotations cannot be parameterized, so each protocol version requires a separate resource class.
 @Path("/a2a_rest_v1.0")
@@ -27,12 +29,18 @@ public class A2ARestServerResource {
     @Inject
     RestHandler restHandler;
 
+    @Inject
+    TenantHolder tenantHolder;
+
+    @Inject
+    SSEHeartbeatScheduler heartbeatScheduler;
+
     private A2ARestServerResourceDelegate delegate;
 
     // Per-request JAX-RS resource — no synchronization needed; each request gets a new instance.
     private A2ARestServerResourceDelegate getDelegate() {
         if (delegate == null) {
-            delegate = new A2ARestServerResourceDelegate(restHandler);
+            delegate = new A2ARestServerResourceDelegate(restHandler, tenantHolder, heartbeatScheduler.getScheduler());
         }
         return delegate;
     }
@@ -40,8 +48,8 @@ public class A2ARestServerResource {
     @GET
     @Path(".well-known/agent-card.json")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response getAgentCard() {
-        return getDelegate().getAgentCard();
+    public Response getAgentCard(@Context HttpServletRequest httpRequest) {
+        return getDelegate().getAgentCard(httpRequest);
     }
 
     @POST
@@ -60,7 +68,6 @@ public class A2ARestServerResource {
     }
 
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.SERVER_SENT_EVENTS)
     @Path("tasks/{taskId}:subscribe")
     public void resubscribeTask(@PathParam("taskId") String taskId, @Context HttpServletRequest httpRequest, @Context HttpServletResponse httpResponse, @Context SecurityContext securityContext) throws IOException {
@@ -98,7 +105,6 @@ public class A2ARestServerResource {
 
     @POST
     @Path("tasks/{taskId}:cancel")
-    @Consumes(MediaType.APPLICATION_JSON)
     public Response cancelTask(@PathParam("taskId") String taskId, String body, @Context HttpServletRequest httpRequest, @Context SecurityContext securityContext) {
         return getDelegate().cancelTask(taskId, body, httpRequest, securityContext);
     }
