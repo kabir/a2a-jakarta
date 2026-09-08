@@ -57,6 +57,7 @@
         <version.shrinkwrap.resolvers>3.3.4</version.shrinkwrap.resolvers>
         <version.rest-assured>5.5.5</version.rest-assured>
         <version.wildfly.grpc>0.2.1.Final</version.wildfly.grpc>
+        <version.wildfly.datasources>11.5.0.Final</version.wildfly.datasources>
 
         <arquillian.java.vm.args></arquillian.java.vm.args>
         <server.debug.port>8787</server.debug.port>
@@ -195,6 +196,26 @@
             <dependency>
                 <groupId>org.a2aproject.sdk</groupId>
                 <artifactId>a2a-java-extras-multitenancy-tests-test-common</artifactId>
+                <version>${version.sdk}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.a2aproject.sdk</groupId>
+                <artifactId>a2a-java-extras-task-store-database-jpa</artifactId>
+                <version>${version.sdk}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.a2aproject.sdk</groupId>
+                <artifactId>a2a-java-extras-push-notification-config-store-database-jpa</artifactId>
+                <version>${version.sdk}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.a2aproject.sdk</groupId>
+                <artifactId>a2a-java-queue-manager-replicated-core</artifactId>
+                <version>${version.sdk}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.a2aproject.sdk</groupId>
+                <artifactId>a2a-java-queue-manager-replication-mp-reactive</artifactId>
                 <version>${version.sdk}</version>
             </dependency>
             <dependency>

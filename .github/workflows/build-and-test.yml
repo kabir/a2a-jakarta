@@ -142,6 +142,82 @@ jobs:
             echo "Actual: $CLIENT_OUTPUT"
             exit 1
           fi
+      - name: Start PostgreSQL and Kafka for enterprise example
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          docker run -d --name a2a-enterprise-postgres \
+            -e POSTGRES_DB=a2a_enterprise -e POSTGRES_USER=a2a -e POSTGRES_PASSWORD=a2a \
+            -p 5432:5432 postgres:16
+          docker run -d --name a2a-enterprise-kafka -p 9092:9092 apache/kafka:4.1.0
+          sleep 10
+          docker exec a2a-enterprise-kafka /opt/kafka/bin/kafka-topics.sh --create \
+            --topic replicated-events --bootstrap-server localhost:9092 --partitions 1
+      - name: Test enterprise example (jsonrpc, grpc, rest)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          for PROFILE in jsonrpc grpc rest; do
+            echo "=== Enterprise example: $PROFILE ==="
+            mvn -B clean package -pl examples/enterprise/server -P${PROFILE} -Dversion.sdk=${SDK_VERSION}
+
+            rm -rf examples/enterprise/server/target/node-a examples/enterprise/server/target/node-b
+            cp -r examples/enterprise/server/target/wildfly examples/enterprise/server/target/node-a
+            cp -r examples/enterprise/server/target/wildfly examples/enterprise/server/target/node-b
+
+            STABILITY_ARGS=""
+            if [ "$PROFILE" = "grpc" ]; then
+              STABILITY_ARGS="--stability=preview"
+            fi
+
+            # LAUNCH_JBOSS_IN_BACKGROUND is required so standalone.sh installs its signal traps and
+            # relays TERM to the actual JVM child; without it, standalone.sh runs java in the
+            # foreground of its own process (no trap), so `kill $NODE_A_PID` only kills the
+            # standalone.sh wrapper and orphans the JVM.
+            LAUNCH_JBOSS_IN_BACKGROUND=true \
+            POSTGRESQL_DATABASE=a2a_enterprise POSTGRESQL_USER=a2a POSTGRESQL_PASSWORD=a2a \
+            POSTGRESQL_SERVICE_HOST=localhost POSTGRESQL_SERVICE_PORT=5432 \
+            examples/enterprise/server/target/node-a/bin/standalone.sh \
+              -Dmp.messaging.incoming.replicated-events-in.group.id=a2a-jakarta-enterprise-node-a \
+              $STABILITY_ARGS &
+            NODE_A_PID=$!
+
+            LAUNCH_JBOSS_IN_BACKGROUND=true \
+            POSTGRESQL_DATABASE=a2a_enterprise POSTGRESQL_USER=a2a POSTGRESQL_PASSWORD=a2a \
+            POSTGRESQL_SERVICE_HOST=localhost POSTGRESQL_SERVICE_PORT=5432 \
+            examples/enterprise/server/target/node-b/bin/standalone.sh \
+              -Djboss.socket.binding.port-offset=1000 \
+              -Dmp.messaging.incoming.replicated-events-in.group.id=a2a-jakarta-enterprise-node-b \
+              $STABILITY_ARGS &
+            NODE_B_PID=$!
+
+            for i in $(seq 1 60); do
+              if curl -sf http://localhost:8080/.well-known/agent-card.json > /dev/null && \
+                 curl -sf http://localhost:9080/.well-known/agent-card.json > /dev/null; then
+                break
+              fi
+              sleep 2
+            done
+
+            CLIENT_OUTPUT=$(mvn -B exec:java -pl examples/enterprise/client -Prun-${PROFILE} -Duser.name="CI Run" -q 2>&1)
+
+            kill $NODE_A_PID $NODE_B_PID
+            wait $NODE_A_PID $NODE_B_PID 2>/dev/null || true
+
+            echo "$CLIENT_OUTPUT"
+            if [[ "$CLIENT_OUTPUT" != *"Agent responds: Hello CI Run"* ]]; then
+              echo "❌ Enterprise example ($PROFILE) failed"
+              exit 1
+            fi
+            if [[ "$CLIENT_OUTPUT" != *"Node B observed states"* ]]; then
+              echo "❌ Enterprise example ($PROFILE) did not prove cross-node replication"
+              exit 1
+            fi
+            echo "✅ Enterprise example ($PROFILE) passed"
+          done
+      - name: Stop enterprise example containers
+        if: matrix.os == 'ubuntu-latest' && always()
+        run: |
+          docker stop a2a-enterprise-postgres a2a-enterprise-kafka || true
+          docker rm a2a-enterprise-postgres a2a-enterprise-kafka || true
       - name: Upload WildFly logs on test failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -150,5 +226,7 @@ jobs:
           path: |
             tests/jsonrpc/target/wildfly/standalone/log/server.log
             tests/grpc/target/wildfly/standalone/log/server.log
+            examples/enterprise/server/target/node-a/standalone/log/server.log
+            examples/enterprise/server/target/node-b/standalone/log/server.log
           if-no-files-found: ignore
           retention-days: 5
