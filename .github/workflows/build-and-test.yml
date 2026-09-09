@@ -163,9 +163,9 @@ jobs:
             cp -r examples/enterprise/server/target/wildfly examples/enterprise/server/target/node-a
             cp -r examples/enterprise/server/target/wildfly examples/enterprise/server/target/node-b
 
-            STABILITY_ARGS=""
+            STABILITY_ARGS=()
             if [ "$PROFILE" = "grpc" ]; then
-              STABILITY_ARGS="--stability=preview"
+              STABILITY_ARGS+=(--stability=preview)
             fi
 
             # LAUNCH_JBOSS_IN_BACKGROUND is required so standalone.sh installs its signal traps and
@@ -177,7 +177,7 @@ jobs:
             POSTGRESQL_SERVICE_HOST=localhost POSTGRESQL_SERVICE_PORT=5432 \
             examples/enterprise/server/target/node-a/bin/standalone.sh \
               -Dmp.messaging.incoming.replicated-events-in.group.id=a2a-jakarta-enterprise-node-a \
-              $STABILITY_ARGS &
+              "${STABILITY_ARGS[@]}" &
             NODE_A_PID=$!
 
             LAUNCH_JBOSS_IN_BACKGROUND=true \
@@ -186,10 +186,10 @@ jobs:
             examples/enterprise/server/target/node-b/bin/standalone.sh \
               -Djboss.socket.binding.port-offset=1000 \
               -Dmp.messaging.incoming.replicated-events-in.group.id=a2a-jakarta-enterprise-node-b \
-              $STABILITY_ARGS &
+              "${STABILITY_ARGS[@]}" &
             NODE_B_PID=$!
 
-            for i in $(seq 1 60); do
+            for _ in $(seq 1 60); do
               if curl -sf http://localhost:8080/.well-known/agent-card.json > /dev/null && \
                  curl -sf http://localhost:9080/.well-known/agent-card.json > /dev/null; then
                 break

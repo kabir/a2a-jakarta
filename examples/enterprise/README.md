@@ -99,11 +99,13 @@ mvn clean install -Pjsonrpc -f server/pom.xml
 cp -r server/target/wildfly server/target/node-a
 cp -r server/target/wildfly server/target/node-b
 
+LAUNCH_JBOSS_IN_BACKGROUND=true \
 POSTGRESQL_DATABASE=a2a_enterprise POSTGRESQL_USER=a2a POSTGRESQL_PASSWORD=a2a \
 POSTGRESQL_SERVICE_HOST=localhost POSTGRESQL_SERVICE_PORT=5432 \
 server/target/node-a/bin/standalone.sh \
   -Dmp.messaging.incoming.replicated-events-in.group.id=a2a-jakarta-enterprise-node-a &
 
+LAUNCH_JBOSS_IN_BACKGROUND=true \
 POSTGRESQL_DATABASE=a2a_enterprise POSTGRESQL_USER=a2a POSTGRESQL_PASSWORD=a2a \
 POSTGRESQL_SERVICE_HOST=localhost POSTGRESQL_SERVICE_PORT=5432 \
 server/target/node-b/bin/standalone.sh \
