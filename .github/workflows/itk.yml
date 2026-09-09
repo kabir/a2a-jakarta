@@ -105,6 +105,7 @@ jobs:
           A2A_ITK_REVISION: main
           ITK_SKIP_BUILD: "1"
           ITK_LOG_LEVEL: DEBUG
+          ITK_BUILD_TIMEOUT: 1800
           ITK_M2_REPO: ${{ env.IS_SNAPSHOT == 'true' && '/home/runner/.m2/repository' || '' }}
 
       - name: Upload ITK agent logs

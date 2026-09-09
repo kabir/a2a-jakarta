@@ -7,6 +7,7 @@ ITK_SDK_NAME=java
 ITK_SCENARIO_SET=shared
 ITK_COPY_PROTO=0
 ITK_MOUNT_ITK_DIR=0
+ITK_EXTRA_DOCKER_ARGS=(-e ITK_BUILD_TIMEOUT="${ITK_BUILD_TIMEOUT:-1800}")
 
 : "${A2A_ITK_REVISION:?A2A_ITK_REVISION environment variable must be set}"
 if [ ! -d a2a-itk ]; then
