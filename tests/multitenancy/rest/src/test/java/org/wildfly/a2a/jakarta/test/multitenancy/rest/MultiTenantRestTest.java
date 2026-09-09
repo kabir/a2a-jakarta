@@ -1,32 +1,17 @@
 package org.wildfly.a2a.jakarta.test.multitenancy.rest;
 
+import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.getCommonMultitenancyLibraries;
 import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.getJarForClass;
-import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.prepareMultiTenantTestCommonJar;
 
-import java.util.List;
-
-import com.google.api.AnnotationsProto;
-import com.google.common.collect.ImmutableSet;
-import com.google.gson.Gson;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
-import mutiny.zero.ZeroPublisher;
 import org.a2aproject.sdk.client.ClientBuilder;
 import org.a2aproject.sdk.client.config.ClientConfig;
-import org.a2aproject.sdk.client.http.A2AHttpClient;
 import org.a2aproject.sdk.client.transport.rest.RestTransport;
 import org.a2aproject.sdk.client.transport.rest.RestTransportConfigBuilder;
-import org.a2aproject.sdk.client.transport.spi.ClientTransport;
-import org.a2aproject.sdk.extras.multitenancy.CdiAgentExecutorRouter;
 import org.a2aproject.sdk.extras.multitenancy.tests.AbstractMultiTenantServerTest;
-import org.a2aproject.sdk.grpc.utils.JSONRPCUtils;
 import org.a2aproject.sdk.integrations.microprofile.MicroProfileConfigProvider;
-import org.a2aproject.sdk.jsonrpc.common.json.JsonUtil;
-import org.a2aproject.sdk.server.PublicAgentCard;
-import org.a2aproject.sdk.spec.Event;
 import org.a2aproject.sdk.spec.TransportProtocol;
 import org.a2aproject.sdk.transport.rest.handler.RestHandler;
-import org.a2aproject.sdk.util.Assert;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.junit5.container.annotation.ArquillianTest;
@@ -61,32 +46,15 @@ public class MultiTenantRestTest extends AbstractMultiTenantServerTest {
 
     @Deployment
     public static WebArchive createTestArchive() throws Exception {
-        JavaArchive multiTenantTestCommonJar = prepareMultiTenantTestCommonJar();
-
-        JavaArchive[] libraries = List.of(
-                getJarForClass(Assert.class),
-                getJarForClass(A2AHttpClient.class),
-                getJarForClass(PublicAgentCard.class),
-                getJarForClass(Event.class),
-                getJarForClass(JSONRPCUtils.class),
+        JavaArchive[] libraries = getCommonMultitenancyLibraries(
                 getJarForClass(RestHandler.class),
-                getJarForClass(JsonUtil.class),
-                getJarForClass(Gson.class),
                 getJarForClass(InvalidProtocolBufferException.class),
-                getJarForClass(JsonFormat.class),
-                getJarForClass(AnnotationsProto.class),
-                getJarForClass(ImmutableSet.class),
                 getJarForClass(org.wildfly.a2a.jakarta.common.SSESubscriber.class),
                 getJarForClass(A2ARestServerResource.class),
                 getJarForClass(MicroProfileConfigProvider.class),
-                getJarForClass(ZeroPublisher.class),
-                getJarForClass(ClientConfig.class),
-                getJarForClass(ClientTransport.class),
-                getJarForClass(RestTransport.class),
                 getJarForClass(AsyncManagedExecutorServiceProducer.class),
-                getJarForClass(CdiAgentExecutorRouter.class),
-                multiTenantTestCommonJar
-        ).toArray(JavaArchive[]::new);
+                getJarForClass(ClientConfig.class),
+                getJarForClass(RestTransport.class));
 
         return ShrinkWrap.create(WebArchive.class, "ROOT.war")
                 .addAsLibraries(libraries)

@@ -66,7 +66,7 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Multitenancy test-common jar, needed by ArchiveUtils.prepareMultiTenantTestCommonJar();
+        <!-- Multitenancy test-common jar, needed by ArchiveUtils.prepareMultiTenantTestCommonJarForWildFly();
              provided to avoid leaking to non-multitenancy modules -->
         <dependency>
             <groupId>org.a2aproject.sdk</groupId>

@@ -51,15 +51,15 @@ public final class A2ARequestAttributes {
         if (wellKnownIndex < 0) {
             return "";
         }
-        if (wellKnownIndex == 0) {
-            String after = normalizedPath.substring(("/" + WELL_KNOWN).length());
-            int slash = after.indexOf('/');
-            if (slash < 0) {
-                return "";
-            }
-            String candidate = after.substring(0, slash);
-            return candidate.equals(AGENT_CARD_JSON) ? "" : candidate;
+        if (wellKnownIndex > 0) {
+            return normalizedPath.substring(1, wellKnownIndex);
         }
-        return normalizedPath.substring(1, wellKnownIndex);
+        String after = normalizedPath.substring(("/" + WELL_KNOWN).length());
+        int slash = after.indexOf('/');
+        if (slash < 0) {
+            return "";
+        }
+        String candidate = after.substring(0, slash);
+        return candidate.equals(AGENT_CARD_JSON) ? "" : candidate;
     }
 }

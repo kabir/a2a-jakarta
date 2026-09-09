@@ -1,37 +1,24 @@
 package org.wildfly.a2a.jakarta.test.multitenancy.grpc;
 
 import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.getJarForClass;
-import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.prepareMultiTenantTestCommonJar;
+import static org.wildfly.a2a.jakarta.test.common.ArchiveUtils.getCommonMultitenancyLibraries;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
-import com.google.api.AnnotationsProto;
-import com.google.common.collect.ImmutableSet;
-import com.google.gson.Gson;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import mutiny.zero.ZeroPublisher;
 import org.a2aproject.sdk.A2A;
 import org.a2aproject.sdk.client.ClientBuilder;
-import org.a2aproject.sdk.client.http.A2AHttpClient;
 import org.a2aproject.sdk.client.transport.grpc.GrpcTransport;
 import org.a2aproject.sdk.client.transport.grpc.GrpcTransportConfigBuilder;
 import org.a2aproject.sdk.client.transport.grpc.GrpcTransportProvider;
-import org.a2aproject.sdk.client.transport.spi.ClientTransport;
-import org.a2aproject.sdk.extras.multitenancy.CdiAgentExecutorRouter;
 import org.a2aproject.sdk.extras.multitenancy.tests.AbstractMultiTenantServerTest;
 import org.a2aproject.sdk.grpc.A2AServiceGrpc;
-import org.a2aproject.sdk.grpc.utils.JSONRPCUtils;
 import org.a2aproject.sdk.integrations.microprofile.MicroProfileConfigProvider;
-import org.a2aproject.sdk.jsonrpc.common.json.JsonUtil;
-import org.a2aproject.sdk.server.PublicAgentCard;
-import org.a2aproject.sdk.spec.Event;
 import org.a2aproject.sdk.spec.TransportProtocol;
 import org.a2aproject.sdk.transport.grpc.handler.GrpcHandler;
-import org.a2aproject.sdk.util.Assert;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.RunAsClient;
 import org.jboss.arquillian.junit5.container.annotation.ArquillianTest;
@@ -43,6 +30,10 @@ import org.junit.jupiter.api.AfterAll;
 import org.wildfly.a2a.jakarta.common.AsyncManagedExecutorServiceProducer;
 import org.wildfly.a2a.jakarta.grpc.WildFlyGrpcHandler;
 
+/**
+ * gRPC multitenancy coverage. The upstream base class also defines HTTP public-card tests;
+ * those inherited tests are intentionally no-ops here because gRPC does not serve those endpoints.
+ */
 @ArquillianTest
 @RunAsClient
 public class MultiTenantGrpcTest extends AbstractMultiTenantServerTest {
@@ -75,39 +66,19 @@ public class MultiTenantGrpcTest extends AbstractMultiTenantServerTest {
 
     @Deployment
     public static WebArchive createDeployment() throws Exception {
-        JavaArchive multiTenantTestCommonJar = prepareMultiTenantTestCommonJar();
-
-        final JavaArchive[] libraries = List.of(
+        final JavaArchive[] libraries = getCommonMultitenancyLibraries(
                 // a2a-jakarta-grpc.jar - contains WildFlyGrpcHandler
                 getJarForClass(WildFlyGrpcHandler.class),
                 // a2a-java-sdk-client.jar
                 getJarForClass(A2A.class),
-                getJarForClass(Assert.class),
-                getJarForClass(A2AHttpClient.class),
-                getJarForClass(PublicAgentCard.class),
-                getJarForClass(Event.class),
-                getJarForClass(JSONRPCUtils.class),
                 getJarForClass(GrpcHandler.class),
-                getJarForClass(JsonUtil.class),
-                getJarForClass(Gson.class),
                 // protobuf-java.jar - include correct version to match gencode
                 getJarForClass(com.google.protobuf.Message.class),
-                getJarForClass(JsonFormat.class),
-                getJarForClass(AnnotationsProto.class),
-                getJarForClass(ImmutableSet.class),
-                getJarForClass(MicroProfileConfigProvider.class),
                 // a2a-java-spec-grpc.jar (contains generated gRPC classes; removed from auto-registration below)
                 getJarForClass(A2AServiceGrpc.class),
-                getJarForClass(ZeroPublisher.class),
-                getJarForClass(ClientTransport.class),
                 getJarForClass(GrpcTransportProvider.class),
-                getJarForClass(AsyncManagedExecutorServiceProducer.class),
-                // extras-multitenancy: CdiAgentExecutorRouter + CdiAgentCardRouter + @Tenant
-                getJarForClass(CdiAgentExecutorRouter.class),
-                // shared multitenancy test infra: AbstractMultiTenantServerTest,
-                // MultiTenantAgentCardProducer, MultiTenantAgentExecutorProducer, Tenants
-                multiTenantTestCommonJar
-        ).toArray(new JavaArchive[0]);
+                getJarForClass(MicroProfileConfigProvider.class),
+                getJarForClass(AsyncManagedExecutorServiceProducer.class));
 
         // These are provided by WildFly's gRPC feature-pack and should not be packaged in the WAR;
         // the manifest export makes the module classes visible to all classloaders in the deployment.
@@ -126,25 +97,20 @@ public class MultiTenantGrpcTest extends AbstractMultiTenantServerTest {
         return archive;
     }
 
-    // gRPC-only deployments do not serve the well-known public-card endpoints.
     @Override
     public void publicCardWithoutTenantReturnsDefault() {
-        // no-op: not served by gRPC
     }
 
     @Override
     public void publicCardWithAcmeTenant() {
-        // no-op: not served by gRPC
     }
 
     @Override
     public void publicCardWithBetaTenant() {
-        // no-op: not served by gRPC
     }
 
     @Override
     public void publicCardUnknownTenantReturns404() {
-        // no-op: not served by gRPC
     }
 
     @AfterAll
