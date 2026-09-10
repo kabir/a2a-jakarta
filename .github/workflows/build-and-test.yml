@@ -149,12 +149,51 @@ jobs:
             -e POSTGRES_DB=a2a_enterprise -e POSTGRES_USER=a2a -e POSTGRES_PASSWORD=a2a \
             -p 5432:5432 postgres:16
           docker run -d --name a2a-enterprise-kafka -p 9092:9092 apache/kafka:4.1.0
-          sleep 10
-          docker exec a2a-enterprise-kafka /opt/kafka/bin/kafka-topics.sh --create \
+
+          for _ in $(seq 1 60); do
+            if docker exec a2a-enterprise-postgres pg_isready -U a2a -d a2a_enterprise >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          if ! docker exec a2a-enterprise-postgres pg_isready -U a2a -d a2a_enterprise >/dev/null 2>&1; then
+            echo "PostgreSQL did not become ready"
+            exit 1
+          fi
+
+          for _ in $(seq 1 60); do
+            if docker exec a2a-enterprise-kafka /opt/kafka/bin/kafka-topics.sh \
+                --list --bootstrap-server localhost:9092 >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          if ! docker exec a2a-enterprise-kafka /opt/kafka/bin/kafka-topics.sh \
+              --list --bootstrap-server localhost:9092 >/dev/null 2>&1; then
+            echo "Kafka did not become ready"
+            exit 1
+          fi
+          docker exec a2a-enterprise-kafka /opt/kafka/bin/kafka-topics.sh --create --if-not-exists \
             --topic replicated-events --bootstrap-server localhost:9092 --partitions 1
       - name: Test enterprise example (jsonrpc, grpc, rest)
         if: matrix.os == 'ubuntu-latest'
         run: |
+          cleanup_nodes() {
+            for NODE_PID in "${NODE_A_PID:-}" "${NODE_B_PID:-}"; do
+              if [[ -n "$NODE_PID" ]] && kill -0 "$NODE_PID" 2>/dev/null; then
+                kill "$NODE_PID" 2>/dev/null || true
+              fi
+            done
+            for NODE_PID in "${NODE_A_PID:-}" "${NODE_B_PID:-}"; do
+              if [[ -n "$NODE_PID" ]]; then
+                wait "$NODE_PID" 2>/dev/null || true
+              fi
+            done
+            NODE_A_PID=
+            NODE_B_PID=
+          }
+          trap cleanup_nodes EXIT
+
           for PROFILE in jsonrpc grpc rest; do
             echo "=== Enterprise example: $PROFILE ==="
             mvn -B clean package -pl examples/enterprise/server -P${PROFILE} -Dversion.sdk=${SDK_VERSION}
@@ -189,18 +228,27 @@ jobs:
               "${STABILITY_ARGS[@]}" &
             NODE_B_PID=$!
 
+            READY=false
             for _ in $(seq 1 60); do
               if curl -sf http://localhost:8080/.well-known/agent-card.json > /dev/null && \
                  curl -sf http://localhost:9080/.well-known/agent-card.json > /dev/null; then
+                READY=true
                 break
               fi
               sleep 2
             done
+            if [[ "$READY" != true ]]; then
+              echo "WildFly nodes did not become ready for profile $PROFILE"
+              echo "Node A log:"
+              tail -n 80 examples/enterprise/server/target/node-a/standalone/log/server.log || true
+              echo "Node B log:"
+              tail -n 80 examples/enterprise/server/target/node-b/standalone/log/server.log || true
+              exit 1
+            fi
 
             CLIENT_OUTPUT=$(mvn -B exec:java -pl examples/enterprise/client -Prun-${PROFILE} -Duser.name="CI Run" -q 2>&1)
 
-            kill $NODE_A_PID $NODE_B_PID
-            wait $NODE_A_PID $NODE_B_PID 2>/dev/null || true
+            cleanup_nodes
 
             echo "$CLIENT_OUTPUT"
             if [[ "$CLIENT_OUTPUT" != *"Agent responds: Hello CI Run"* ]]; then

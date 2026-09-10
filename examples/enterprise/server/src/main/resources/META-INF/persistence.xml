@@ -8,7 +8,8 @@
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 
         <properties>
-            <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+            <!-- Both WildFly nodes share this database; never drop/recreate it during deployment. -->
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
             <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQLDialect"/>
         </properties>
     </persistence-unit>

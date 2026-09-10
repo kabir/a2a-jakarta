@@ -29,7 +29,9 @@ pointing at the portable Jakarta EE default datasource (`java:comp/DefaultDataSo
 WildFly Glow binds automatically via the `postgresql:default` add-on
 (see [`server/pom.xml`](./server/pom.xml)'s `discover-provisioning-info` blocks). The `kafka`
 add-on similarly provisions the MicroProfile Reactive Messaging Kafka connector — no manual
-CLI/subsystem configuration is needed for either.
+CLI/subsystem configuration is needed for either. The persistence unit uses non-destructive schema
+update mode because both WildFly nodes share the same database; deploying one node never drops the
+other node's data.
 
 ### Two nodes, one build
 
@@ -127,7 +129,7 @@ Expected output:
 
 ```
 Created task <uuid> via node A
-Node B observed states (via Kafka replication): [TASK_STATE_WORKING, TASK_STATE_COMPLETED]
+Node B observed states (via Kafka replication): [TASK_STATE_SUBMITTED, TASK_STATE_WORKING, TASK_STATE_COMPLETED]
 Agent responds: Hello Kabir
 ```
 
