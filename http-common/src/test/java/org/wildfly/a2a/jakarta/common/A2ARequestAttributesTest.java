@@ -30,6 +30,8 @@ class A2ARequestAttributesTest {
     void extractWellKnownTenant() {
         assertEquals("", A2ARequestAttributes.extractWellKnownTenant("/.well-known/agent-card.json"));
         assertEquals("", A2ARequestAttributes.extractWellKnownTenant(".well-known/agent-card.json"));
+        assertEquals("acme", A2ARequestAttributes.extractWellKnownTenant("/acme/.well-known/agent-card.json"));
+        assertEquals("beta", A2ARequestAttributes.extractWellKnownTenant("beta/.well-known/agent-card.json"));
         assertEquals("acme", A2ARequestAttributes.extractWellKnownTenant("/.well-known/acme/agent-card.json"));
         assertEquals("beta", A2ARequestAttributes.extractWellKnownTenant(".well-known/beta/agent-card.json"));
     }

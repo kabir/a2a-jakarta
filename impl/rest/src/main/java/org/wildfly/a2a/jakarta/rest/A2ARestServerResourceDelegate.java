@@ -312,7 +312,6 @@ public class A2ARestServerResourceDelegate {
     }
 
     public Response getOrListTaskPushNotificationConfigurations(String taskId, HttpServletRequest httpRequest, SecurityContext securityContext) {
-        ServerCallContext context = createCallContext(httpRequest, securityContext, LIST_TASK_PUSH_NOTIFICATION_CONFIG_METHOD);
         RestHandler.HTTPRestResponse response = null;
         try {
             if (taskId == null || taskId.isEmpty()) {
@@ -320,9 +319,13 @@ public class A2ARestServerResourceDelegate {
             } else {
                 String requestURI = httpRequest.getRequestURI();
                 if (requestURI.endsWith("/")) {
+                    ServerCallContext context = createCallContext(httpRequest, securityContext,
+                            GET_TASK_PUSH_NOTIFICATION_CONFIG_METHOD);
                     response = restHandler.getTaskPushNotificationConfiguration(context, readTenant(httpRequest),
                             taskId, null);
                 } else {
+                    ServerCallContext context = createCallContext(httpRequest, securityContext,
+                            LIST_TASK_PUSH_NOTIFICATION_CONFIG_METHOD);
                     int pageSize = 0;
                     if (httpRequest.getParameter(PAGE_SIZE_PARAM) != null) {
                         pageSize = Integer.parseInt(httpRequest.getParameter(PAGE_SIZE_PARAM));

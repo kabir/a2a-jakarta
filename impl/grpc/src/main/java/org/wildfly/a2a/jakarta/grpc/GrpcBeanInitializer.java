@@ -30,7 +30,7 @@ public class GrpcBeanInitializer {
 
     @Inject
     @PublicAgentCard
-    AgentCard agentCard;
+    Instance<AgentCard> agentCard;
 
     @Inject
     @ExtendedAgentCard
@@ -57,7 +57,14 @@ public class GrpcBeanInitializer {
         try {
             // Cache CDI beans for gRPC threads to use since CDI is not available on those threads
             CallContextFactory ccf = callContextFactory.isUnsatisfied() ? null : callContextFactory.get();
-            AgentCard extCard = extendedAgentCard.isUnsatisfied() ? null : extendedAgentCard.get();
+            AgentCard publicCard = agentCard.isResolvable() ? agentCard.get() : null;
+            // Multitenant deployments register several @ExtendedAgentCard-qualified beans (one per
+            // tenant plus the default), so a bare @ExtendedAgentCard injection point is ambiguous.
+            // Use isResolvable() (as the SDK's own QuarkusGrpcHandler does) rather than
+            // isUnsatisfied() so AmbiguousResolutionException doesn't abort startup here; the
+            // AgentCardRouter (captured separately below) is what actually resolves per-tenant
+            // extended cards at request time. This field is only used as the no-router fallback.
+            AgentCard extCard = extendedAgentCard.isResolvable() ? extendedAgentCard.get() : null;
             // Capture the deployment classloader for use on gRPC threads
             // This is needed because gRPC threads have the grpc extension module classloader as TCCL,
             // which cannot see deployment WEB-INF/lib jars needed by ServiceLoader
@@ -74,7 +81,7 @@ public class GrpcBeanInitializer {
             }
 
             AgentCardRouter router = agentCardRouter.isResolvable() ? agentCardRouter.get() : null;
-            WildFlyGrpcHandler.setStaticBeans(agentCard, extCard, requestHandler, ccf, executor, deploymentClassLoader, router);
+            WildFlyGrpcHandler.setStaticBeans(publicCard, extCard, requestHandler, ccf, executor, deploymentClassLoader, router);
         } catch (Exception e) {
             e.printStackTrace();
         }

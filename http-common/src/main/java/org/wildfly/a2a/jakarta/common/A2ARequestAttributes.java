@@ -46,11 +46,15 @@ public final class A2ARequestAttributes {
         if (path == null) {
             return "";
         }
-        int idx = path.indexOf(WELL_KNOWN);
-        if (idx < 0) {
+        String normalizedPath = path.startsWith("/") ? path : "/" + path;
+        int wellKnownIndex = normalizedPath.indexOf("/" + WELL_KNOWN);
+        if (wellKnownIndex < 0) {
             return "";
         }
-        String after = path.substring(idx + WELL_KNOWN.length());
+        if (wellKnownIndex > 0) {
+            return normalizedPath.substring(1, wellKnownIndex);
+        }
+        String after = normalizedPath.substring(("/" + WELL_KNOWN).length());
         int slash = after.indexOf('/');
         if (slash < 0) {
             return "";
