@@ -190,6 +190,7 @@
                     </feature-packs>
                     <discover-provisioning-info>
                         <add-ons>
+                            <add-on>wildfly-cli</add-on>
                             <add-on>postgresql:default</add-on>
                             <add-on>kafka</add-on>
                         </add-ons>
@@ -288,6 +289,7 @@
                             </feature-packs>
                             <discover-provisioning-info>
                                 <add-ons>
+                                    <add-on>wildfly-cli</add-on>
                                     <add-on>grpc</add-on>
                                     <add-on>postgresql:default</add-on>
                                     <add-on>kafka</add-on>

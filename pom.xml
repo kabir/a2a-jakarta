@@ -44,7 +44,7 @@
 
     <properties>
         <jboss.home>${project.build.directory}${file.separator}wildfly</jboss.home>
-        <version.wildfly>40.0.0.Final</version.wildfly>
+        <version.wildfly>41.0.1.Final</version.wildfly>
         <version.sdk>1.3.2.Final</version.sdk>
 
         <version.hamcrest>2.2</version.hamcrest>
@@ -57,7 +57,8 @@
         <version.shrinkwrap.resolvers>3.3.4</version.shrinkwrap.resolvers>
         <version.rest-assured>5.5.5</version.rest-assured>
         <version.wildfly.grpc>0.2.1.Final</version.wildfly.grpc>
-        <version.wildfly.datasources>11.5.0.Final</version.wildfly.datasources>
+        <!-- Keep this version in sync with WildFly. Find the compatible version in the WildFly Galleon feature-pack documentation: https://docs.wildfly.org/wildfly-galleon-feature-packs/ -->
+        <version.wildfly.datasources>11.4.0.Final</version.wildfly.datasources>
 
         <arquillian.java.vm.args></arquillian.java.vm.args>
         <server.debug.port>8787</server.debug.port>

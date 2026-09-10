@@ -217,6 +217,7 @@
                     </feature-packs>
                     <discover-provisioning-info>
                         <add-ons>
+                            <add-on>wildfly-cli</add-on>
                             <add-on>grpc</add-on>
                         </add-ons>
                     </discover-provisioning-info>
