@@ -1,0 +1,335 @@
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.wildfly.a2a</groupId>
+        <artifactId>a2a-jakarta-examples-parent</artifactId>
+        <version>1.0.0.Final-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>a2a-jakarta-example-enterprise-server</artifactId>
+
+    <packaging>war</packaging>
+
+    <name>WildFly Extras - A2A Jakarta - Examples - Enterprise Server</name>
+    <description>Java SDK for the Agent2Agent Protocol (A2A) - SDK - Jakarta - Example - Enterprise</description>
+
+    <properties>
+        <!--
+            Property to ensure that the default build does not provision a WildFly server.
+            Each profile will set this to 'package' and further configure the plugin.
+        -->
+        <wildfly.maven.plugin.phase>none</wildfly.maven.plugin.phase>
+    </properties>
+
+    <dependencies>
+        <!-- Dependencies needed to compile. 'provided' scope since they are provided by WildFly -->
+        <dependency>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!--
+            Enables MicroProfile Config integration for a2a-java configuration.
+            Must be bundled in the WAR (compile scope) so CDI discovers MicroProfileConfigProvider,
+            which reads META-INF/microprofile-config.properties from the deployment classpath.
+        -->
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-microprofile-config</artifactId>
+        </dependency>
+
+        <!--
+        The core a2a-java server dependency. Default scope since it, and
+        a lot of its dependencies should be included in the war.  -->
+        <dependency>
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-sdk-server-common</artifactId>
+
+            <!-- Exclude transitive dependencies provided by WildFly -->
+            <exclusions>
+                <exclusion>
+                    <groupId>jakarta.enterprise</groupId>
+                    <artifactId>jakarta.enterprise.cdi-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jakarta.inject</groupId>
+                    <artifactId>jakarta.inject-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- ============================================================ -->
+        <!-- Enterprise features: JPA-backed stores + replicated queue    -->
+        <!-- manager, enabling multi-node/load-balanced deployment.       -->
+        <!-- See a2a-java docs: storage.md, replicated-queue-manager.md   -->
+        <!-- ============================================================ -->
+        <dependency>
+            <!-- JPA-backed TaskStore (replaces InMemoryTaskStore once on the classpath) -->
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-extras-task-store-database-jpa</artifactId>
+
+            <!--
+                This module compile-scope-depends on jakarta.enterprise.cdi-api and jakarta.inject-api.
+                Exclude both so they aren't re-bundled into the WAR via this transitive path, consistent
+                with how a2a-java-sdk-server-common's own dependency block above excludes them.
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>jakarta.enterprise</groupId>
+                    <artifactId>jakarta.enterprise.cdi-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jakarta.inject</groupId>
+                    <artifactId>jakarta.inject-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- JPA-backed PushNotificationConfigStore (replaces InMemoryPushNotificationConfigStore once on the classpath) -->
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-extras-push-notification-config-store-database-jpa</artifactId>
+
+            <!-- Same rationale as the task-store-database-jpa exclusions above -->
+            <exclusions>
+                <exclusion>
+                    <groupId>jakarta.enterprise</groupId>
+                    <artifactId>jakarta.enterprise.cdi-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>jakarta.inject</groupId>
+                    <artifactId>jakarta.inject-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- Replicated queue manager core (replaces InMemoryQueueManager once on the classpath) -->
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-queue-manager-replicated-core</artifactId>
+
+            <!--
+                This module transitively pulls in a full Quarkus runtime (quarkus-core and its
+                dependencies) purely to obtain MicroProfile Reactive Messaging API classes at
+                compile time. WildFly already provides that API plus a compatible SmallRye Reactive
+                Messaging Kafka runtime via the microprofile-reactive-messaging-kafka Galleon layer
+                (added below). Bundling the Quarkus jars in the WAR causes CDI/interceptor bean
+                deployment failures (e.g. WFLYEE0065 on io.quarkus.vertx's
+                SafeVertxContextInterceptor), so exclude them the same way jakarta.enterprise.cdi-api
+                and jakarta.inject-api are excluded above.
+            -->
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus.security</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <!-- MicroProfile Reactive Messaging (Kafka) replication strategy -->
+            <groupId>org.a2aproject.sdk</groupId>
+            <artifactId>a2a-java-queue-manager-replication-mp-reactive</artifactId>
+
+            <!-- Same rationale as the a2a-java-queue-manager-replicated-core exclusions above -->
+            <exclusions>
+                <exclusion>
+                    <groupId>io.quarkus</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus.arc</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.quarkus.security</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <!--
+                WildFly specific plugin to provision a WildFly server with the functionality required to
+                run our .war file.
+                It deploys the war renamed to 'ROOT.war' so that it is deployed under the root context, i.e. under '/'.
+                By default, this will be under http://localhost:8080/.
+            -->
+            <plugin>
+                <groupId>org.wildfly.plugins</groupId>
+                <artifactId>wildfly-maven-plugin</artifactId>
+                <configuration>
+                    <feature-packs>
+                        <feature-pack>
+                            <groupId>org.wildfly</groupId>
+                            <artifactId>wildfly-galleon-pack</artifactId>
+                            <version>${version.wildfly}</version>
+                        </feature-pack>
+                        <feature-pack>
+                            <groupId>org.wildfly</groupId>
+                            <artifactId>wildfly-datasources-galleon-pack</artifactId>
+                            <version>${version.wildfly.datasources}</version>
+                        </feature-pack>
+                    </feature-packs>
+                    <discover-provisioning-info>
+                        <add-ons>
+                            <add-on>postgresql:default</add-on>
+                            <add-on>kafka</add-on>
+                        </add-ons>
+                    </discover-provisioning-info>
+                    <jboss-home>${jboss.home}</jboss-home>
+                    <name>ROOT.war</name>
+                    <provisioning-dir>${jboss.home}</provisioning-dir>
+                    <galleon-options>
+                        <jboss-fork-embedded>true</jboss-fork-embedded>
+                    </galleon-options>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>provisioning</id>
+                        <goals>
+                            <goal>package</goal>
+                        </goals>
+                        <phase>${wildfly.maven.plugin.phase}</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>jsonrpc</id>
+            <properties>
+                <wildfly.maven.plugin.phase>package</wildfly.maven.plugin.phase>
+            </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>a2a-jakarta-jsonrpc</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>grpc</id>
+            <properties>
+                <wildfly.maven.plugin.phase>package</wildfly.maven.plugin.phase>
+            </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>a2a-jakarta-grpc</artifactId>
+                    <version>${project.version}</version>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>io.grpc</groupId>
+                            <artifactId>*</artifactId>
+                        </exclusion>
+                        <exclusion>
+                            <groupId>com.google.protobuf</groupId>
+                            <artifactId>protobuf-java</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+
+                <!--
+                   gRPC needs JSONRPC to get the agent card.
+                   This is likely to change in the future. So for now include the
+                   JSONRCP dependencies here.
+                -->
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>a2a-jakarta-jsonrpc</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.wildfly.plugins</groupId>
+                        <artifactId>wildfly-maven-plugin</artifactId>
+                        <configuration>
+                            <feature-packs>
+                                <feature-pack>
+                                    <groupId>org.wildfly</groupId>
+                                    <artifactId>wildfly-galleon-pack</artifactId>
+                                    <version>${version.wildfly}</version>
+                                </feature-pack>
+                                <feature-pack>
+                                    <groupId>org.wildfly.grpc</groupId>
+                                    <artifactId>wildfly-grpc-feature-pack</artifactId>
+                                    <version>${version.wildfly.grpc}</version>
+                                </feature-pack>
+                                <feature-pack>
+                                    <groupId>org.wildfly</groupId>
+                                    <artifactId>wildfly-datasources-galleon-pack</artifactId>
+                                    <version>${version.wildfly.datasources}</version>
+                                </feature-pack>
+                            </feature-packs>
+                            <discover-provisioning-info>
+                                <add-ons>
+                                    <add-on>grpc</add-on>
+                                    <add-on>postgresql:default</add-on>
+                                    <add-on>kafka</add-on>
+                                </add-ons>
+                            </discover-provisioning-info>
+                            <galleon-options>
+                                <jboss-fork-embedded>true</jboss-fork-embedded>
+                                <stability-level>preview</stability-level>
+                            </galleon-options>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>provisioning</id>
+                                <goals>
+                                    <goal>package</goal>
+                                </goals>
+                                <phase>${wildfly.maven.plugin.phase}</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>rest</id>
+            <properties>
+                <wildfly.maven.plugin.phase>package</wildfly.maven.plugin.phase>
+            </properties>
+
+            <dependencies>
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>a2a-jakarta-rest</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+
+                <dependency>
+                    <groupId>${project.groupId}</groupId>
+                    <artifactId>a2a-jakarta-jsonrpc</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+</project>
