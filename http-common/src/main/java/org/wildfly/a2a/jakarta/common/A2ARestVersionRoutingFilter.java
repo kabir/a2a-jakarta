@@ -84,9 +84,8 @@ public class A2ARestVersionRoutingFilter implements ContainerRequestFilter {
         }
 
         String tenant = A2ARequestAttributes.extractTenant(path);
-        if (!tenant.isEmpty() && !startsWithKnownRestBasePath(path)) {
-            requestContext.setProperty(A2ARequestAttributes.A2A_TENANT_ATTR, tenant);
-            tenantHolder.setTenant(tenant);
+        boolean hasTenantPrefix = !tenant.isEmpty() && !startsWithKnownRestBasePath(path);
+        if (hasTenantPrefix) {
             String stripped = path.startsWith("/") ? path.substring(1) : path;   // "acme/message:send"
             stripped = stripped.substring(tenant.length());                      // "/message:send" (or "")
             path = stripped.isEmpty() ? "/" : stripped;                          // normalize
@@ -94,20 +93,22 @@ public class A2ARestVersionRoutingFilter implements ContainerRequestFilter {
 
         String versionHeader = requestContext.getHeaderString(A2AHeaders.A2A_VERSION);
 
-        if (versionHeader == null) {
-            boolean matchesKnownPath = startsWithKnownRestBasePath(path);
-            if (!matchesKnownPath) {
-                String normalizedPath = path.startsWith("/") ? path.substring(1) : path;
-                for (String prefix : rootProviderPathPrefixes) {
-                    if (normalizedPath.equals(prefix) || normalizedPath.startsWith(prefix + "/") || normalizedPath.startsWith(prefix + ":")) {
-                        matchesKnownPath = true;
-                        break;
-                    }
+        boolean matchesKnownPath = startsWithKnownRestBasePath(path);
+        if (!matchesKnownPath) {
+            String normalizedPath = path.startsWith("/") ? path.substring(1) : path;
+            for (String prefix : rootProviderPathPrefixes) {
+                if (normalizedPath.equals(prefix) || normalizedPath.startsWith(prefix + "/") || normalizedPath.startsWith(prefix + ":")) {
+                    matchesKnownPath = true;
+                    break;
                 }
             }
-            if (!matchesKnownPath) {
-                return;
-            }
+        }
+        if (!matchesKnownPath) {
+            return;
+        }
+        if (hasTenantPrefix) {
+            requestContext.setProperty(A2ARequestAttributes.A2A_TENANT_ATTR, tenant);
+            tenantHolder.setTenant(tenant);
         }
 
         A2AVersionProvider provider = versionResolver.resolve(versionHeader);
