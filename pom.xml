@@ -70,6 +70,8 @@
         <!-- Redirect test output to file -->
         <maven.test.redirectTestOutputToFile>true</maven.test.redirectTestOutputToFile>
 
+        <central.deploymentName>a2a-jakarta-1.1.0.Final-retry-1</central.deploymentName>
+
         <!-- Plugin versions, not managed by parent -->
         <version.plugin.wildfly-glow-arquillian>1.4.1.Final</version.plugin.wildfly-glow-arquillian>
         <version.plugin.wildfly-maven>5.1.3.Final</version.plugin.wildfly-maven>
